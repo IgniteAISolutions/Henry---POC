@@ -1,0 +1,4 @@
+curl -X POST "https://docling-service-u53318.vm.elestio.app/convert" `
+  -H "Content-Type: application/json" `
+  -H "x-api-key: $env:5f9b88a4d9-ignite-docling-key" `
+  -d "{""file_url"":""https://gxbcqiqwwidoteusipgn.supabase.co/storage/v1/object/public/product-pdfs/brochures/1757532354041_ZWILLING-Enfinigy-Contact-Grill.pdf"",""page_start"":1,""page_end"":5}"

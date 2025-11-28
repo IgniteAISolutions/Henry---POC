@@ -1,0 +1,826 @@
+<<<<<<< HEAD
+# app/main.py - UNIFIED UNIVERSAL API
+# Handles: PDF, CSV, Image, Text, URL, SKU/EAN search
+# All endpoints working with proper CORS
+
+import os
+import logging
+from typing import List, Optional
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Import service modules
+try:
+    from app.services import csv_parser, image_processor, text_processor, product_search, url_scraper, brand_voice
+    logger.info("✅ All service modules imported successfully")
+except ImportError as e:
+    logger.error(f"❌ Failed to import service modules: {e}")
+    # Create stub implementations if imports fail
+    csv_parser = None
+    image_processor = None
+    text_processor = None
+    product_search = None
+    url_scraper = None
+    brand_voice = None
+
+from app.config import ALLOWED_CATEGORIES
+
+# Configuration
+API_KEY = os.getenv("DOCLING_API_KEY", "")
+
+# Create FastAPI app
+app = FastAPI(
+    title="Universal Product Automation",
+    description="Complete product automation backend",
+    version="2.0.0"
+)
+
+# CORS middleware - ALLOW ALL
+=======
+"""
+Universal Product Automation Backend
+FastAPI application with complete Elestio consolidation
+"""
+import os
+import logging
+from typing import List
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import Response
+from fastapi.middleware.cors import CORSMiddleware
+
+from .models import (
+    Product,
+    ProcessingResponse,
+    HealthResponse,
+    ProductSearchRequest,
+    URLScraperRequest,
+    TextProcessorRequest,
+    ExportCSVRequest
+)
+from .services import (
+    csv_parser,
+    image_processor,
+    product_search,
+    url_scraper,
+    text_processor,
+    brand_voice,
+    seo_lighthouse
+)
+from .utils import normalizers, csv_exporter
+from .config import ALLOWED_CATEGORIES
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Create FastAPI app
+app = FastAPI(
+    title="Universal Product Automation",
+    description="Complete product automation backend with brand voice generation",
+    version="1.0.0"
+)
+
+# CORS middleware - ALLOW ALL ORIGINS FOR TESTING
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+<<<<<<< HEAD
+
+def check_key(x_api_key: Optional[str]):
+    """Validate API key if configured"""
+    if API_KEY and x_api_key != API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+=======
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+
+# ============================================================
+# MODELS
+# ============================================================
+
+class ProcessingResponse(BaseModel):
+    success: bool
+    products: List[dict]
+    message: Optional[str] = None
+
+
+class TextProcessorRequest(BaseModel):
+    text: str
+    category: str
+
+
+class ProductSearchRequest(BaseModel):
+    query: str
+    category: str
+    search_type: str = "sku"
+
+
+class URLScraperRequest(BaseModel):
+    url: str
+    category: str
+
+
+# ============================================================
+# HEALTH CHECK
+# ============================================================
+
+@app.get("/healthz")
+async def healthz():
+    """Health check endpoint"""
+    return {
+        "status": "ok",
+<<<<<<< HEAD
+        "version": "2.0.0",
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+        "services": {
+            "csv_parser": csv_parser is not None,
+            "image_processor": image_processor is not None,
+            "text_processor": text_processor is not None,
+            "product_search": product_search is not None,
+            "url_scraper": url_scraper is not None,
+            "brand_voice": brand_voice is not None,
+        }
+    }
+
+
+# ============================================================
+# CSV UPLOAD ENDPOINT
+# ============================================================
+
+@app.post("/api/parse-csv")
+async def parse_csv_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(...),
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Parse CSV file and generate brand voice descriptions
+    """
+    check_key(x_api_key)
+    
+=======
+        "version": "1.0.0",
+        "openai_configured": bool(os.getenv("OPENAI_API_KEY"))
+    }
+
+
+@app.post("/api/parse-csv", response_model=ProcessingResponse)
+async def parse_csv_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(...)
+):
+    """
+    Parse CSV file and generate brand voice descriptions
+    Args:
+        file: CSV file upload
+        category: Product category
+    Returns:
+        ProcessingResponse with enhanced products
+    """
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    try:
+        # Validate category
+        if category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+<<<<<<< HEAD
+        logger.info(f"📊 Processing CSV upload for category: {category}")
+
+        if not csv_parser:
+            raise HTTPException(status_code=503, detail="CSV parser not available")
+
+        # 1. Parse CSV
+        file_content = await file.read()
+        products = await csv_parser.process(file_content, category)
+        logger.info(f"✅ Parsed {len(products)} products from CSV")
+
+        # 2. Generate brand voice
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, category)
+                logger.info(f"✅ Brand voice generated for {len(products)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Successfully processed {len(products)} products"
+=======
+        logger.info(f"Processing CSV upload for category: {category}")
+
+        # 1. Parse CSV
+        file_content = await file.read()
+        products = await csv_parser.process(file_content, category)
+
+        logger.info(f"Parsed {len(products)} products from CSV")
+
+        # 2. Normalize structure
+        products = normalizers.normalize_products(products, category)
+
+        # 3. Generate brand voice (includes retry logic)
+        products = await brand_voice.generate(products, category)
+
+        # 4. SEO validation & auto-fix
+        for product in products:
+            descriptions = product.get("descriptions", {})
+            meta = descriptions.get("metaDescription", "")
+
+            # Extract keywords from product
+            keywords = seo_lighthouse.extract_keywords_from_product(product)
+
+            # Validate and fix meta description
+            seo_result = await seo_lighthouse.validate_and_fix_meta(
+                meta,
+                product.get("name", ""),
+                keywords
+            )
+
+            # Update with fixed meta
+            product["descriptions"]["metaDescription"] = seo_result["fixed"]
+
+            # Store validation result for logging
+            product["_seo_validation"] = seo_result
+
+        logger.info(f"Successfully processed {len(products)} products")
+
+        return ProcessingResponse(
+            success=True,
+            products=products
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+<<<<<<< HEAD
+# ============================================================
+# IMAGE UPLOAD ENDPOINT
+# ============================================================
+
+@app.post("/api/parse-image")
+async def parse_image_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(...),
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Parse image file via OCR and generate brand voice descriptions
+    """
+    check_key(x_api_key)
+    
+=======
+@app.post("/api/parse-image", response_model=ProcessingResponse)
+async def parse_image_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(...)
+):
+    """
+    Parse image file via OCR and generate brand voice descriptions
+    Args:
+        file: Image file upload
+        category: Product category
+    Returns:
+        ProcessingResponse with enhanced products
+    """
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    try:
+        # Validate category
+        if category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+<<<<<<< HEAD
+        logger.info(f"📸 Processing image upload for category: {category}")
+
+        if not image_processor:
+            raise HTTPException(status_code=503, detail="Image processor not available")
+=======
+        logger.info(f"Processing image upload for category: {category}")
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+
+        # 1. Process image (OCR)
+        file_content = await file.read()
+        products = await image_processor.process(file_content, category, file.filename)
+<<<<<<< HEAD
+        logger.info(f"✅ Extracted {len(products)} products from image")
+
+        # 2. Generate brand voice
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, category)
+                logger.info(f"✅ Brand voice generated for {len(products)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Successfully processed {len(products)} products from image"
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+# ============================================================
+# TEXT PROCESSING ENDPOINT
+# ============================================================
+
+@app.post("/api/process-text")
+async def process_text_endpoint(
+    request: TextProcessorRequest,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Process free-form text and generate brand voice descriptions
+    """
+    check_key(x_api_key)
+    
+    try:
+        # Validate category
+        if request.category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+        logger.info(f"📝 Processing text input ({len(request.text)} chars)")
+
+        if not text_processor:
+            raise HTTPException(status_code=503, detail="Text processor not available")
+
+        # 1. Process text
+        products = await text_processor.process(request.text, request.category)
+        logger.info(f"✅ Extracted {len(products)} products from text")
+
+        # 2. Generate brand voice
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, request.category)
+                logger.info(f"✅ Brand voice generated for {len(products)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Successfully processed {len(products)} products from text"
+=======
+
+        # 2. Normalize structure
+        products = normalizers.normalize_products(products, category)
+
+        # 3. Generate brand voice
+        products = await brand_voice.generate(products, category)
+
+        # 4. SEO validation & auto-fix
+        for product in products:
+            descriptions = product.get("descriptions", {})
+            meta = descriptions.get("metaDescription", "")
+            keywords = seo_lighthouse.extract_keywords_from_product(product)
+
+            seo_result = await seo_lighthouse.validate_and_fix_meta(
+                meta,
+                product.get("name", ""),
+                keywords
+            )
+
+            product["descriptions"]["metaDescription"] = seo_result["fixed"]
+            product["_seo_validation"] = seo_result
+
+        logger.info(f"Successfully processed {len(products)} products from image")
+
+        return ProcessingResponse(
+            success=True,
+            products=products
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+<<<<<<< HEAD
+# ============================================================
+# PRODUCT SEARCH ENDPOINT (SKU/EAN)
+# ============================================================
+
+@app.post("/api/search-product")
+async def search_product_endpoint(
+    request: ProductSearchRequest,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Search for product by SKU/EAN and generate brand voice descriptions
+    """
+    check_key(x_api_key)
+    
+=======
+@app.post("/api/search-product", response_model=ProcessingResponse)
+async def search_product_endpoint(request: ProductSearchRequest):
+    """
+    Search for product by SKU/EAN and generate brand voice descriptions
+    Args:
+        request: ProductSearchRequest with query, category, search_type
+    Returns:
+        ProcessingResponse with enhanced products
+    """
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    try:
+        # Validate category
+        if request.category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+<<<<<<< HEAD
+        logger.info(f"🔍 Searching for {request.search_type}: {request.query}")
+
+        if not product_search:
+            raise HTTPException(status_code=503, detail="Product search not available")
+=======
+        logger.info(f"Searching for {request.search_type}: {request.query}")
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+
+        # 1. Search product
+        products = await product_search.search(
+            request.query,
+            request.category,
+            request.search_type
+        )
+<<<<<<< HEAD
+        logger.info(f"✅ Found {len(products)} products")
+
+        # 2. Generate brand voice
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, request.category)
+                logger.info(f"✅ Brand voice generated for {len(products)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Successfully found {len(products)} products"
+=======
+
+        # 2. Normalize structure
+        products = normalizers.normalize_products(products, request.category)
+
+        # 3. Generate brand voice
+        products = await brand_voice.generate(products, request.category)
+
+        # 4. SEO validation & auto-fix
+        for product in products:
+            descriptions = product.get("descriptions", {})
+            meta = descriptions.get("metaDescription", "")
+            keywords = seo_lighthouse.extract_keywords_from_product(product)
+
+            seo_result = await seo_lighthouse.validate_and_fix_meta(
+                meta,
+                product.get("name", ""),
+                keywords
+            )
+
+            product["descriptions"]["metaDescription"] = seo_result["fixed"]
+            product["_seo_validation"] = seo_result
+
+        logger.info(f"Successfully processed {len(products)} products from search")
+
+        return ProcessingResponse(
+            success=True,
+            products=products
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+<<<<<<< HEAD
+# ============================================================
+# URL SCRAPER ENDPOINT
+# ============================================================
+
+@app.post("/api/scrape-url")
+async def scrape_url_endpoint(
+    request: URLScraperRequest,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Scrape URL for product data and generate brand voice descriptions
+    """
+    check_key(x_api_key)
+    
+=======
+@app.post("/api/scrape-url", response_model=ProcessingResponse)
+async def scrape_url_endpoint(request: URLScraperRequest):
+    """
+    Scrape URL for product data and generate brand voice descriptions
+    Args:
+        request: URLScraperRequest with url and category
+    Returns:
+        ProcessingResponse with enhanced products
+    """
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    try:
+        # Validate category
+        if request.category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+<<<<<<< HEAD
+        logger.info(f"🌐 Scraping URL: {request.url}")
+
+        if not url_scraper:
+            raise HTTPException(status_code=503, detail="URL scraper not available")
+
+        # 1. Scrape URL
+        products = await url_scraper.scrape(request.url, request.category)
+        logger.info(f"✅ Scraped {len(products)} products from URL")
+
+        # 2. Generate brand voice
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, request.category)
+                logger.info(f"✅ Brand voice generated for {len(products)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Successfully scraped {len(products)} products from URL"
+=======
+        logger.info(f"Scraping URL: {request.url}")
+
+        # 1. Scrape URL
+        products = await url_scraper.scrape(request.url, request.category)
+
+        # 2. Normalize structure
+        products = normalizers.normalize_products(products, request.category)
+
+        # 3. Generate brand voice
+        products = await brand_voice.generate(products, request.category)
+
+        # 4. SEO validation & auto-fix
+        for product in products:
+            descriptions = product.get("descriptions", {})
+            meta = descriptions.get("metaDescription", "")
+            keywords = seo_lighthouse.extract_keywords_from_product(product)
+
+            seo_result = await seo_lighthouse.validate_and_fix_meta(
+                meta,
+                product.get("name", ""),
+                keywords
+            )
+
+            product["descriptions"]["metaDescription"] = seo_result["fixed"]
+            product["_seo_validation"] = seo_result
+
+        logger.info(f"Successfully processed {len(products)} products from URL")
+
+        return ProcessingResponse(
+            success=True,
+            products=products
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+<<<<<<< HEAD
+=======
+
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+<<<<<<< HEAD
+# ============================================================
+# CATEGORIES ENDPOINT
+# ============================================================
+=======
+@app.post("/api/process-text", response_model=ProcessingResponse)
+async def process_text_endpoint(request: TextProcessorRequest):
+    """
+    Process free-form text and generate brand voice descriptions
+    Args:
+        request: TextProcessorRequest with text and category
+    Returns:
+        ProcessingResponse with enhanced products
+    """
+    try:
+        # Validate category
+        if request.category not in ALLOWED_CATEGORIES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(ALLOWED_CATEGORIES)}"
+            )
+
+        logger.info(f"Processing text input ({len(request.text)} chars)")
+
+        # 1. Process text
+        products = await text_processor.process(request.text, request.category)
+
+        # 2. Normalize structure
+        products = normalizers.normalize_products(products, request.category)
+
+        # 3. Generate brand voice
+        products = await brand_voice.generate(products, request.category)
+
+        # 4. SEO validation & auto-fix
+        for product in products:
+            descriptions = product.get("descriptions", {})
+            meta = descriptions.get("metaDescription", "")
+            keywords = seo_lighthouse.extract_keywords_from_product(product)
+
+            seo_result = await seo_lighthouse.validate_and_fix_meta(
+                meta,
+                product.get("name", ""),
+                keywords
+            )
+
+            product["descriptions"]["metaDescription"] = seo_result["fixed"]
+            product["_seo_validation"] = seo_result
+
+        logger.info(f"Successfully processed {len(products)} products from text")
+
+        return ProcessingResponse(
+            success=True,
+            products=products
+        )
+
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+    except Exception as e:
+        logger.error(f"Processing error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+
+
+@app.post("/api/export-csv")
+async def export_csv_endpoint(request: Request):
+    """
+    Export products to CSV with BOM, sanitization, and dynamic columns
+    Args:
+        request: Request with JSON body containing products array
+    Returns:
+        CSV file with UTF-8 BOM
+    Headers:
+        x-prefer-p-tags: "true" or "false" (default: true)
+    """
+    try:
+        # Parse request body
+        body = await request.json()
+        products = body.get("products", [])
+
+        if not products:
+            raise HTTPException(status_code=400, detail="No products provided")
+
+        # Get preference for <p> tags vs <br> tags
+        prefer_p_tags = request.headers.get("x-prefer-p-tags", "true").lower() != "false"
+
+        logger.info(f"Exporting {len(products)} products to CSV (prefer_p_tags={prefer_p_tags})")
+
+        # Generate CSV
+        csv_content = csv_exporter.generate_csv(products, prefer_p_tags)
+
+        # Return CSV response
+        return Response(
+            content=csv_content,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="harts_products_export.csv"'
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Export error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+
+@app.get("/api/categories")
+async def get_categories():
+    """Get list of allowed categories"""
+    return {
+        "categories": sorted(list(ALLOWED_CATEGORIES))
+    }
+
+<<<<<<< HEAD
+
+# ============================================================
+# ERROR HANDLERS
+# ============================================================
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request, exc: HTTPException):
+    """Handle HTTP exceptions"""
+=======
+# Error handlers
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions"""
+    from fastapi.responses import JSONResponse
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    logger.error(f"HTTP {exc.status_code}: {exc.detail}")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "error": exc.detail,
+        }
+    )
+
+<<<<<<< HEAD
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request, exc: Exception):
+    """Handle general exceptions"""
+=======
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions"""
+    from fastapi.responses import JSONResponse
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "Internal server error",
+        }
+    )
+<<<<<<< HEAD
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
+=======
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+>>>>>>> 4bb5e0a365344f8e9c6e11a885d4182157a1eec0
