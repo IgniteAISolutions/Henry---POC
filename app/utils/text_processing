@@ -1,0 +1,211 @@
+"""
+Shared utility functions for Universal Product Automation
+"""
+import re
+from typing import Dict, Any, Optional, List
+
+
+def sanitize_html_p(text: str) -> str:
+    """Wrap text in <p> tags"""
+    if not text:
+        return ""
+    text = text.strip()
+    if not text.startswith("<p>"):
+        text = f"<p>{text}</p>"
+    return text
+
+
+def strip_brand_taglines(text: str) -> str:
+    """Remove brand taglines like 'Since 1919', 'Harts of Stur'"""
+    if not text:
+        return ""
+
+    patterns = [
+        r'Since\s+\d{4}',
+        r'Harts\s+of\s+Stur',
+        r'est\.\s*\d{4}',
+        r'established\s+\d{4}',
+    ]
+
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+
+def strip_provenance(text: str) -> str:
+    """Remove provenance info like 'imported from', source URLs"""
+    if not text:
+        return ""
+
+    patterns = [
+        r'imported\s+from\s+[a-zA-Z]+',
+        r'source:\s*https?://[^\s]+',
+        r'via\s+https?://[^\s]+',
+    ]
+
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+
+    return text.strip()
+
+
+def normalize_paragraphs(text: str, prefer_p_tags: bool = True) -> str:
+    """Convert between <p> tags and <br> tags"""
+    if not text:
+        return ""
+
+    if prefer_p_tags:
+        # Convert <br> to </p><p>
+        text = re.sub(r'<br\s*/?>', '</p><p>', text)
+        # Ensure wrapped in <p>
+        if not text.startswith('<p>'):
+            text = f'<p>{text}'
+        if not text.endswith('</p>'):
+            text = f'{text}</p>'
+        # Clean up empty paragraphs
+        text = re.sub(r'<p>\s*</p>', '', text)
+    else:
+        # Convert </p><p> to <br>
+        text = re.sub(r'</p>\s*<p>', '<br>', text)
+        # Remove remaining <p> tags
+        text = re.sub(r'</?p>', '', text)
+
+    return text.strip()
+
+
+def sanitize_csv_content(text: str) -> str:
+    """Remove dangerous HTML elements for CSV export"""
+    if not text:
+        return ""
+
+    # Remove scripts, styles, iframes
+    patterns = [
+        r'<script[^>]*>.*?</script>',
+        r'<style[^>]*>.*?</style>',
+        r'<iframe[^>]*>.*?</iframe>',
+        r'<link[^>]*>',
+        r'on\w+="[^"]*"',  # Remove inline event handlers
+    ]
+
+    for pattern in patterns:
+        text = re.sub(pattern, '', text, flags=re.IGNORECASE | re.DOTALL)
+
+    return text.strip()
+
+
+def clamp(text: str, max_length: int) -> str:
+    """Truncate text to max length"""
+    if not text or len(text) <= max_length:
+        return text
+    return text[:max_length].strip()
+
+
+def first_sentence(text: str) -> str:
+    """Extract first sentence from text"""
+    if not text:
+        return ""
+
+    match = re.match(r'^[^.!?]+[.!?]', text)
+    if match:
+        return match.group(0).strip()
+    return text.strip()
+
+
+def format_dimensions(raw: str) -> str:
+    """Format dimensions as H x W x D"""
+    if not raw:
+        return ""
+
+    # Extract numbers
+    numbers = re.findall(r'\d+(?:\.\d+)?', raw)
+    if len(numbers) >= 3:
+        return f"{numbers[0]} x {numbers[1]} x {numbers[2]} cm"
+    return raw
+
+
+def format_capacity(raw: str) -> str:
+    """Normalize ml/litre capacity"""
+    if not raw:
+        return ""
+
+    # Extract number and unit
+    match = re.search(r'(\d+(?:\.\d+)?)\s*(ml|litre|liter|l)', raw, re.IGNORECASE)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2).lower()
+
+        if unit in ['litre', 'liter', 'l']:
+            return f"{value} litre"
+        else:
+            return f"{value} ml"
+    return raw
+
+
+def categorize_product(text: str, default: str = "General") -> str:
+    """Categorize product based on text content"""
+    text_lower = text.lower()
+
+    categories = {
+        "Bakeware": ["bake", "oven", "tin", "pan", "tray", "mould"],
+        "Cookware": ["pot", "pan", "skillet", "wok", "casserole", "saucepan"],
+        "Electricals": ["electric", "power", "watt", "voltage", "cord", "plug"],
+        "Knives, Cutlery": ["knife", "cutlery", "fork", "spoon", "blade"],
+        "Food & Drink": ["food", "drink", "beverage", "edible", "tea", "coffee"],
+        "Health & Beauty": ["beauty", "cosmetic", "skincare", "health", "wellness"],
+        "Home & Garden": ["garden", "furniture", "decor", "cleaning"],
+        "Dining, Drink, Living": ["dining", "table", "glass", "cup", "mug"],
+    }
+
+    for category, keywords in categories.items():
+        if any(keyword in text_lower for keyword in keywords):
+            return category
+
+    return default
+
+
+def extract_sku_patterns(text: str) -> Optional[str]:
+    """Extract SKU from text using common patterns"""
+    patterns = [
+        r'([A-Z]{2,}[0-9]{4,})',  # Letters + numbers
+        r'([0-9]{5,})',            # Just numbers (5+)
+        r'SKU:\s*([A-Z0-9\-]+)',   # Explicit SKU label
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return match.group(1)
+    return None
+
+
+def extract_specifications(text: str) -> Dict[str, str]:
+    """Extract specifications from text using regex patterns"""
+    specs = {}
+
+    patterns = {
+        "weight": r'(\d+(?:\.\d+)?\s*kg)',
+        "dimensions": r'(\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*x\s*\d+(?:\.\d+)?\s*cm)',
+        "capacity": r'(\d+(?:\.\d+)?\s*(?:ml|litre|liter|l))',
+        "power": r'(\d+\s*(?:w|watt|watts))',
+        "material": r'(?:made\s+(?:from|of)\s+)([a-z\s]+)',
+    }
+
+    for key, pattern in patterns.items():
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            specs[key] = match.group(1).strip()
+
+    return specs
+
+
+def generate_product_id() -> str:
+    """Generate unique product ID"""
+    import uuid
+    return str(uuid.uuid4())
+
+
+def validate_product_data(product: Dict[str, Any]) -> bool:
+    """Validate product has minimum required fields"""
+    required_fields = ["name"]
+    return all(field in product and product[field] for field in required_fields)

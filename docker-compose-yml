@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  docling-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: docling-service
+    ports:
+      - "8080:8080"
+    environment:
+      DOCLING_API_KEY: "${DOCLING_API_KEY}"
+      PORT: "8080"
+      # ADD THESE TIMEOUT SETTINGS
+      TIMEOUT_KEEP_ALIVE: "650"  # 10 minutes + buffer
+      TIMEOUT_GRACEFUL_SHUTDOWN: "30"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+      # Server Configuration
+      - PORT=8080
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+
+      # Service Configuration
+      - MAX_FILE_SIZE_MB=50
+      - ALLOWED_EXTENSIONS=pdf,docx,xlsx,pptx,html,txt
+      - TEMP_DIR=/tmp/docling
+
+      # Processing Configuration
+      - MAX_CONCURRENT_JOBS=5
+      - ENABLE_OCR=true
+      - OCR_LANGUAGE=eng
+
+      # CORS Configuration
+      - CORS_ORIGINS=*
+      - CORS_ALLOW_CREDENTIALS=true
+      - CORS_ALLOW_METHODS=*
+      - CORS_ALLOW_HEADERS=*
+
+    volumes:
+      # Mount temp directory for document processing
+      - docling-temp:/tmp/docling
+      # Optional: mount local .env file
+      # - ./.env:/app/.env
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '1.0'
+          memory: 2G
+
+volumes:
+  docling-temp:
+    driver: local
