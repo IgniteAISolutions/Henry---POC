@@ -1,6 +1,6 @@
 """
-Product structure normalization
-Ensures consistent product data structure across all input types
+Product structure normalization for EarthFare
+Ensures consistent product data structure for natural grocery products
 """
 import re
 from typing import Dict, List, Any, Optional
@@ -8,7 +8,7 @@ from typing import Dict, List, Any, Optional
 
 def normalize_product(product_data: Dict[str, Any], category: str) -> Dict[str, Any]:
     """
-    Normalize a single product's structure
+    Normalize a single product's structure for EarthFare grocery products
     Args:
         product_data: Raw product data from any source
         category: Product category
@@ -19,22 +19,26 @@ def normalize_product(product_data: Dict[str, Any], category: str) -> Dict[str, 
         "sku": extract_field(product_data, ["sku", "SKU", "product_code", "item_code"]),
         "barcode": extract_field(product_data, ["barcode", "ean", "EAN", "upc", "gtin"]),
         "name": extract_field(product_data, ["name", "title", "product_name", "productName"], required=True),
-        "brand": extract_field(product_data, ["brand", "manufacturer", "make"]),
+        "brand": extract_field(product_data, ["brand", "manufacturer", "producer", "supplier"]),
         "category": category,
-        "range": extract_field(product_data, ["range", "collection", "series"]),
-        "collection": extract_field(product_data, ["collection", "line"]),
-        "colour": extract_field(product_data, ["colour", "color", "finish_colour"]),
-        "pattern": extract_field(product_data, ["pattern", "design"]),
-        "style": extract_field(product_data, ["style", "type"]),
-        "finish": extract_field(product_data, ["finish", "surface"]),
+        # EarthFare-specific fields
+        "producer": extract_field(product_data, ["producer", "supplier", "maker", "farm", "grower"]),
+        "region": extract_field(product_data, ["region", "location", "source_region", "area"]),
+        "ingredients": extract_field(product_data, ["ingredients", "contents", "composition"]),
+        "dietary": normalize_dietary_info(product_data),
+        "certifications": normalize_certifications(product_data),
+        "allergens": normalize_list_field(product_data, ["allergens", "allergy_info", "contains"]),
+        # Common fields
         "features": normalize_list_field(product_data, ["features", "key_features", "highlights"]),
         "benefits": normalize_list_field(product_data, ["benefits", "advantages"]),
         "specifications": normalize_specifications(product_data),
-        "isNonStick": detect_non_stick(product_data),
-        "usage": extract_field(product_data, ["usage", "use", "application"]),
-        "audience": extract_field(product_data, ["audience", "target", "for"]),
+        "usage": extract_field(product_data, ["usage", "use", "serving_suggestion", "application"]),
+        "audience": extract_field(product_data, ["audience", "target", "for", "suitable_for"]),
+        "storage": extract_field(product_data, ["storage", "storage_instructions", "keep", "store"]),
+        "servings": extract_field(product_data, ["servings", "portions", "serves"]),
         "weightGrams": extract_weight_grams(product_data),
         "weightHuman": extract_weight_human(product_data),
+        "volume": extract_field(product_data, ["volume", "ml", "litres", "liters"]),
     }
 
     # Initialize descriptions if not present
@@ -122,9 +126,121 @@ def normalize_list_field(data: Dict[str, Any], keys: List[str]) -> List[str]:
     return []
 
 
+def normalize_dietary_info(data: Dict[str, Any]) -> List[str]:
+    """
+    Extract and normalize dietary information for EarthFare products
+    Args:
+        data: Product data dictionary
+    Returns:
+        List of dietary attributes (e.g., ['Vegan', 'Gluten Free'])
+    """
+    dietary = []
+
+    # Check dedicated dietary field
+    dietary_field = extract_field(data, ["dietary", "dietary_info", "diet"])
+    if dietary_field:
+        dietary.extend([d.strip() for d in dietary_field.split(',') if d.strip()])
+
+    # Check boolean flags
+    dietary_flags = {
+        "vegan": ["vegan", "isVegan", "is_vegan"],
+        "vegetarian": ["vegetarian", "isVegetarian", "is_vegetarian"],
+        "gluten_free": ["gluten_free", "glutenFree", "isGlutenFree"],
+        "dairy_free": ["dairy_free", "dairyFree", "isDairyFree"],
+        "nut_free": ["nut_free", "nutFree", "isNutFree"],
+        "organic": ["organic", "isOrganic", "is_organic"],
+        "raw": ["raw", "isRaw", "is_raw"],
+        "keto": ["keto", "isKeto", "is_keto"],
+        "paleo": ["paleo", "isPaleo", "is_paleo"]
+    }
+
+    dietary_labels = {
+        "vegan": "Vegan",
+        "vegetarian": "Vegetarian",
+        "gluten_free": "Gluten Free",
+        "dairy_free": "Dairy Free",
+        "nut_free": "Nut Free",
+        "organic": "Organic",
+        "raw": "Raw",
+        "keto": "Keto",
+        "paleo": "Paleo"
+    }
+
+    for diet_key, field_names in dietary_flags.items():
+        for field in field_names:
+            if field in data and data[field]:
+                value = data[field]
+                if isinstance(value, bool) and value:
+                    if dietary_labels[diet_key] not in dietary:
+                        dietary.append(dietary_labels[diet_key])
+                elif isinstance(value, str) and value.lower() in ['true', 'yes', '1']:
+                    if dietary_labels[diet_key] not in dietary:
+                        dietary.append(dietary_labels[diet_key])
+
+    # Scan text fields for dietary mentions
+    text_fields = ["name", "title", "description", "features"]
+    dietary_patterns = {
+        r'\bvegan\b': "Vegan",
+        r'\bvegetarian\b': "Vegetarian",
+        r'\bgluten[- ]?free\b': "Gluten Free",
+        r'\bdairy[- ]?free\b': "Dairy Free",
+        r'\bnut[- ]?free\b': "Nut Free",
+        r'\borganic\b': "Organic"
+    }
+
+    for field in text_fields:
+        if field in data and data[field]:
+            text = str(data[field]).lower()
+            for pattern, label in dietary_patterns.items():
+                if re.search(pattern, text, re.IGNORECASE) and label not in dietary:
+                    dietary.append(label)
+
+    return dietary
+
+
+def normalize_certifications(data: Dict[str, Any]) -> List[str]:
+    """
+    Extract and normalize product certifications for EarthFare
+    Args:
+        data: Product data dictionary
+    Returns:
+        List of certifications (e.g., ['Organic', 'Fairtrade', 'Soil Association'])
+    """
+    certifications = []
+
+    # Check dedicated certifications field
+    cert_field = normalize_list_field(data, ["certifications", "certificates", "accreditations"])
+    certifications.extend(cert_field)
+
+    # Check for common certifications in text fields
+    text_fields = ["name", "title", "description", "features"]
+    cert_patterns = {
+        r'\borganic\b': "Organic",
+        r'\bfairtrade\b': "Fairtrade",
+        r'\bsoil association\b': "Soil Association",
+        r'\bnon[- ]?gmo\b': "Non-GMO",
+        r'\brainforest alliance\b': "Rainforest Alliance",
+        r'\bb[- ]?corp\b': "B Corp",
+        r'\bleaping bunny\b': "Leaping Bunny",
+        r'\bvegan society\b': "Vegan Society",
+        r'\bvegetarian society\b': "Vegetarian Society",
+        r'\bkosher\b': "Kosher",
+        r'\bhalal\b': "Halal"
+    }
+
+    for field in text_fields:
+        if field in data and data[field]:
+            text = str(data[field]).lower()
+            for pattern, label in cert_patterns.items():
+                if re.search(pattern, text, re.IGNORECASE) and label not in certifications:
+                    certifications.append(label)
+
+    return certifications
+
+
 def normalize_specifications(data: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Extract and normalize product specifications
+    Extract and normalize product specifications for EarthFare grocery products
     Args:
         data: Product data dictionary
     Returns:
@@ -136,21 +252,18 @@ def normalize_specifications(data: Dict[str, Any]) -> Dict[str, Any]:
     if "specifications" in data and isinstance(data["specifications"], dict):
         specs.update(data["specifications"])
 
-    # Common specification fields
+    # EarthFare specification fields - focused on food/grocery products
     spec_mapping = {
-        "material": ["material", "materials", "construction", "made_from"],
-        "bladeLength": ["blade_length", "bladeLength", "blade"],
-        "dimensions": ["dimensions", "size", "measurements", "dims"],
-        "weight": ["weight", "weight_text"],
-        "weightKg": ["weight_kg", "weightKg", "weight_kilograms"],
-        "capacity": ["capacity", "volume", "size"],
-        "powerW": ["power", "power_w", "powerW", "wattage", "watts"],
-        "programs": ["programs", "settings", "modes", "functions"],
-        "origin": ["origin", "made_in", "country", "country_of_origin"],
-        "madeIn": ["made_in", "madeIn", "origin", "manufactured_in"],
-        "guarantee": ["guarantee", "warranty", "guarantee_years"],
-        "warranty": ["warranty", "guarantee"],
-        "care": ["care", "care_instructions", "cleaning", "maintenance"]
+        "weight": ["weight", "weight_text", "net_weight"],
+        "volume": ["volume", "ml", "litres", "liters", "capacity"],
+        "origin": ["origin", "made_in", "country", "country_of_origin", "source"],
+        "producer": ["producer", "supplier", "farm", "grower", "maker"],
+        "region": ["region", "location", "source_region"],
+        "ingredients": ["ingredients", "contents", "composition"],
+        "storage": ["storage", "storage_instructions", "keep", "store"],
+        "servings": ["servings", "portions", "serves", "serving_size"],
+        "dosage": ["dosage", "dose", "recommended_dose"],
+        "usage": ["usage", "use", "serving_suggestion", "directions"]
     }
 
     for spec_key, possible_keys in spec_mapping.items():
@@ -158,81 +271,40 @@ def normalize_specifications(data: Dict[str, Any]) -> Dict[str, Any]:
         if value:
             specs[spec_key] = value
 
-    # Clean up dimensions if present
-    if "dimensions" in specs:
-        specs["dimensions"] = normalize_dimensions(specs["dimensions"])
-
-    # Parse power as integer if present
-    if "powerW" in specs:
-        specs["powerW"] = parse_integer(specs["powerW"])
-
-    # Parse weight as float if present
-    if "weightKg" in specs:
-        specs["weightKg"] = parse_float(specs["weightKg"])
-
     return specs
 
 
-def normalize_dimensions(dim_str: str) -> str:
+def normalize_volume(vol_str: str) -> Optional[str]:
     """
-    Normalize dimension strings to consistent format
+    Normalize volume strings to consistent format for beverages and liquids
     Args:
-        dim_str: Dimension string (various formats)
+        vol_str: Volume string (various formats)
     Returns:
-        Normalized dimension string
+        Normalized volume string (e.g., "500ml", "1L")
     """
-    if not dim_str:
-        return ""
+    if not vol_str:
+        return None
 
-    # Common patterns: "30x20x10cm", "30 x 20 x 10 cm", "H30 W20 D10"
-    # Normalize to: "30(H) x 20(W) x 10(D) cm"
+    vol_str = vol_str.lower().strip()
 
-    # Extract numbers
-    numbers = re.findall(r'\d+\.?\d*', dim_str)
+    # Extract number and unit
+    match = re.search(r'(\d+\.?\d*)\s*(ml|l|litre|liter|cl)', vol_str)
+    if match:
+        value = float(match.group(1))
+        unit = match.group(2)
 
-    if len(numbers) == 3:
-        # Try to detect if H/W/D labels are present
-        if re.search(r'[HhØ]', dim_str):
-            return f"{numbers[0]}(H) x {numbers[1]}(W) x {numbers[2]}(D) cm"
-        else:
-            # Assume order is L x W x H or H x W x D
-            return f"{numbers[0]} x {numbers[1]} x {numbers[2]} cm"
-    elif len(numbers) == 2:
-        return f"{numbers[0]} x {numbers[1]} cm"
-    elif len(numbers) == 1:
-        return f"{numbers[0]} cm"
+        if unit in ['l', 'litre', 'liter']:
+            if value < 1:
+                return f"{int(value * 1000)}ml"
+            return f"{value}L"
+        elif unit == 'cl':
+            return f"{int(value * 10)}ml"
+        else:  # ml
+            if value >= 1000:
+                return f"{value / 1000}L"
+            return f"{int(value)}ml"
 
-    # Return as-is if we can't parse
-    return dim_str
-
-
-def detect_non_stick(data: Dict[str, Any]) -> bool:
-    """
-    Detect if product has non-stick coating
-    Args:
-        data: Product data dictionary
-    Returns:
-        True if product is non-stick
-    """
-    # Check various fields for non-stick mentions
-    check_fields = [
-        "name", "title", "description", "features",
-        "coating", "finish", "material", "specifications"
-    ]
-
-    non_stick_patterns = [
-        r'non-stick', r'nonstick', r'non stick',
-        r'teflon', r'ptfe', r'ceramic coated'
-    ]
-
-    for field in check_fields:
-        if field in data:
-            value = str(data[field]).lower()
-            for pattern in non_stick_patterns:
-                if re.search(pattern, value, re.IGNORECASE):
-                    return True
-
-    return False
+    return vol_str
 
 
 def extract_weight_grams(data: Dict[str, Any]) -> Optional[int]:

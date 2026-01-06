@@ -10,7 +10,8 @@ from ..config import FORBIDDEN_PHRASES
 
 def strip_forbidden_phrases(content: str) -> str:
     """
-    Remove forbidden phrases like 'Harts of Stur', 'Since 1919', etc.
+    Remove forbidden phrases for EarthFare brand voice compliance.
+    Removes guilt-based messaging, competitor references, and preachy language.
     Args:
         content: HTML or text content to sanitize
     Returns:
