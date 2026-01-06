@@ -1,6 +1,6 @@
 """
 CSV Export Service
-Exports processed products to Business Central CSV format
+Exports processed products to Shopify and Business Central CSV formats
 Works with products from ANY source: CSV, PDF, URL, image, text, barcode
 """
 import csv
@@ -9,6 +9,8 @@ import logging
 import re
 from typing import List, Dict, Any
 import pandas as pd
+
+from .shopify_mapper import map_to_shopify_csv, SHOPIFY_CSV_HEADERS
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +102,58 @@ def export_to_business_central(products: List[Dict[str, Any]]) -> bytes:
     csv_bytes = csv_buffer.getvalue().encode('utf-8-sig')
     
     logger.info(f"Exported {len(products)} products to Business Central CSV format")
-    
+
+    return csv_bytes
+
+
+def export_to_shopify(products: List[Dict[str, Any]]) -> bytes:
+    """
+    Export products to Shopify CSV format with metafields
+
+    Format:
+    - UTF-8 BOM encoding
+    - Shopify-compatible column headers with metafield notation
+    - Dietary preferences, allergens, ingredients as metafields
+
+    Columns:
+    - ID, Handle, Title, Body HTML, Vendor, Type, Variant Barcode
+    - Metafield: custom.allergens [list.single_line_text_field]
+    - Metafield: pdp.ingredients [rich_text_field]
+    - Metafield: pdp.nutrition [list.single_line_text_field]
+    - Metafield: custom.dietary_preferences [list.single_line_text_field]
+    - Metafield: custom.brand [single_line_text_field]
+
+    Args:
+        products: List of product dictionaries from ANY source
+
+    Returns:
+        CSV file content as bytes with UTF-8 BOM
+    """
+
+    rows = []
+
+    for product in products:
+        # Map product to Shopify format
+        shopify_row = map_to_shopify_csv(product)
+        rows.append(shopify_row)
+
+    # Create DataFrame with ordered columns
+    df = pd.DataFrame(rows, columns=SHOPIFY_CSV_HEADERS)
+
+    # Export to CSV with UTF-8 BOM
+    csv_buffer = io.StringIO()
+    df.to_csv(
+        csv_buffer,
+        index=False,
+        encoding='utf-8-sig',
+        lineterminator='\n',
+        quoting=csv.QUOTE_MINIMAL,
+    )
+
+    csv_bytes = csv_buffer.getvalue().encode('utf-8-sig')
+
+    logger.info(f"Exported {len(products)} products to Shopify CSV format")
+
     return csv_bytes
 
 
