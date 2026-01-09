@@ -41,8 +41,8 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
 # Copy application code
 COPY app /app/app
 
-# Conditionally copy frontend (if exists and enabled)
-COPY frontend/build* /app/frontend/build/ 2>/dev/null || true
+# Create frontend directory (frontend is optional - will be served from Vercel)
+RUN mkdir -p /app/frontend/build
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
