@@ -92,7 +92,7 @@ async def scrape_with_firecrawl(
     extract_schema: Dict = None
 ) -> Optional[Dict[str, Any]]:
     """
-    Scrape a URL using FireCrawl API
+    Scrape a URL using FireCrawl API v2
 
     Args:
         url: URL to scrape
@@ -126,8 +126,9 @@ async def scrape_with_firecrawl(
 
     try:
         async with httpx.AsyncClient(timeout=60) as client:
+            # Use v2 endpoint
             response = await client.post(
-                f"{FIRECRAWL_API_URL}/v1/scrape",
+                f"{FIRECRAWL_API_URL}/v2/scrape",
                 headers=headers,
                 json=payload
             )
@@ -298,7 +299,7 @@ Use class names, IDs, or data attributes where available.""",
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                f"{FIRECRAWL_API_URL}/v1/scrape",
+                f"{FIRECRAWL_API_URL}/v2/scrape",
                 headers=headers,
                 json=payload
             )
@@ -379,7 +380,7 @@ async def map_supplier_website(base_url: str, search_term: str = None) -> List[s
     try:
         async with httpx.AsyncClient(timeout=60) as client:
             response = await client.post(
-                f"{FIRECRAWL_API_URL}/v1/map",
+                f"{FIRECRAWL_API_URL}/v2/map",
                 headers=headers,
                 json=payload
             )
