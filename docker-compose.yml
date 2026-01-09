@@ -1,20 +1,34 @@
+# EarthFare Product Automation - Docker Compose
+# Works for both local development and Elestio deployment
+
 services:
-  docling-service:
-    build: .
-    container_name: docling-service
+  earthfare-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: earthfare-api
     ports:
       - "8080:8080"
     environment:
+      # Core
+      PORT: "${PORT:-8080}"
       DOCLING_API_KEY: "${DOCLING_API_KEY}"
-      PORT: "8080"
-      EAN_SEARCH_API_KEY: "${EAN_SEARCH_API_KEY}"
+      API_KEY: "${API_KEY}"
+      # OpenAI
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
-      GOOGLE_SEARCH_API_KEY: "${GOOGLE_SEARCH_API_KEY}"
-      GOOGLE_SEARCH_CX: "${GOOGLE_SEARCH_CX}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-4o-mini}"
+      # FireCrawl (scraping)
+      FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
+      FIRECRAWL_API_URL: "${FIRECRAWL_API_URL:-https://api.firecrawl.dev}"
+      # EAN Search
+      EAN_SEARCH_API_KEY: "${EAN_SEARCH_API_KEY}"
+      EAN_SEARCH_API_URL: "${EAN_SEARCH_API_URL:-https://api.ean-search.org/api}"
+      # OCR
+      ENABLE_OCR: "${ENABLE_OCR:-true}"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:8080/healthz"]
-      interval: 60s
-      timeout: 30s
-      retries: 5
-      start_period: 120s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

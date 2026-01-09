@@ -24,6 +24,17 @@ except ImportError as e:
     logger.error(f"❌ Failed to import service modules: {e}")
     csv_parser = image_processor = text_processor = product_search = url_scraper = brand_voice = pdf_processor = None
 
+# Import EarthFare-specific modules
+try:
+    from app.services.product_enricher import enrich_product, enrich_products_batch
+    from app.services.shopify_mapper import map_to_shopify_csv, map_products_to_shopify, SHOPIFY_CSV_HEADERS
+    from app.services.dietary_detector import detect_dietary_attributes
+    from app.services.nutrition_parser import parse_nutrition_from_html
+    logger.info("✅ EarthFare modules imported successfully")
+except ImportError as e:
+    logger.warning(f"⚠️ EarthFare modules not fully available: {e}")
+    enrich_product = enrich_products_batch = map_to_shopify_csv = None
+
 from app.config import ALLOWED_CATEGORIES
 
 # Configuration
@@ -338,6 +349,144 @@ async def export_products_endpoint(
     
     except Exception as e:
         logger.error(f"Export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================================
+# EARTHFARE-SPECIFIC ENDPOINTS
+# ============================================================
+
+class EnrichProductRequest(BaseModel):
+    products: List[dict]
+    scrape_suppliers: bool = True
+
+class ShopifyExportRequest(BaseModel):
+    products: List[dict]
+
+@app.post("/api/enrich-products")
+async def enrich_products_endpoint(
+    request: EnrichProductRequest,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Enrich products with nutritional data, ingredients, and dietary info
+    by scraping supplier websites (CLF, Essential, Suma, Infinity)
+    """
+    check_key(x_api_key)
+
+    try:
+        if not enrich_products_batch:
+            raise HTTPException(status_code=503, detail="Product enrichment service not available")
+
+        logger.info(f"🔍 Enriching {len(request.products)} products")
+
+        enriched = await enrich_products_batch(
+            request.products,
+            scrape=request.scrape_suppliers
+        )
+
+        logger.info(f"✅ Enriched {len(enriched)} products with nutritional data")
+
+        return ProcessingResponse(
+            success=True,
+            products=enriched,
+            message=f"Enriched {len(enriched)} products"
+        )
+    except Exception as e:
+        logger.error(f"Enrichment error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/export-shopify")
+async def export_shopify_endpoint(
+    request: ShopifyExportRequest,
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Export products to Shopify/Matrixify CSV format with metafields
+    """
+    check_key(x_api_key)
+
+    try:
+        if not map_products_to_shopify:
+            raise HTTPException(status_code=503, detail="Shopify mapper not available")
+
+        products = request.products
+        if not products:
+            raise HTTPException(status_code=400, detail="No products provided")
+
+        logger.info(f"📤 Exporting {len(products)} products to Shopify CSV")
+
+        # Map to Shopify format
+        shopify_rows = map_products_to_shopify(products)
+
+        # Generate CSV
+        import csv
+        import io
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=SHOPIFY_CSV_HEADERS)
+        writer.writeheader()
+        writer.writerows(shopify_rows)
+
+        csv_content = output.getvalue().encode('utf-8-sig')  # BOM for Excel compatibility
+
+        from fastapi.responses import Response
+        return Response(
+            content=csv_content,
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": 'attachment; filename="earthfare_shopify_import.csv"'
+            }
+        )
+    except Exception as e:
+        logger.error(f"Shopify export error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/process-earthfare")
+async def process_earthfare_endpoint(
+    file: UploadFile = File(...),
+    category: str = Form(default="Store Cupboard"),
+    enrich: bool = Form(default=True),
+    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
+):
+    """
+    Complete EarthFare pipeline: Parse CSV -> Enrich -> Brand Voice -> Shopify CSV
+    """
+    check_key(x_api_key)
+
+    try:
+        logger.info(f"🌿 EarthFare pipeline starting for category: {category}")
+
+        # Step 1: Parse CSV
+        if not csv_parser:
+            raise HTTPException(status_code=503, detail="CSV parser not available")
+
+        file_content = await file.read()
+        products = await csv_parser.process(file_content, category)
+        logger.info(f"📊 Parsed {len(products)} products")
+
+        # Step 2: Enrich with supplier data (optional)
+        if enrich and enrich_products_batch:
+            try:
+                products = await enrich_products_batch(products, scrape=True)
+                logger.info(f"🔍 Enriched products with nutritional data")
+            except Exception as e:
+                logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
+
+        # Step 3: Generate brand voice descriptions
+        if brand_voice:
+            try:
+                products = await brand_voice.generate(products, category)
+                logger.info(f"🎤 Brand voice generated")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand voice failed: {e}")
+
+        return ProcessingResponse(
+            success=True,
+            products=products,
+            message=f"Processed {len(products)} products through EarthFare pipeline"
+        )
+    except Exception as e:
+        logger.error(f"EarthFare pipeline error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================

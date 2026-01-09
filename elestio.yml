@@ -1,0 +1,43 @@
+# Elestio CI/CD Configuration for EarthFare API
+# Documentation: https://doc.elest.io/books/ci-cd
+
+config:
+  runTime: "docker"
+  version: ""
+
+# Build configuration
+ports:
+  - protocol: "HTTPS"
+    targetProtocol: "HTTP"
+    listeningPort: "443"
+    targetPort: "8080"
+    targetIP: "172.17.0.1"
+    public: true
+    path: "/"
+    is498: false
+    isAuth: false
+
+# Environment variables (set values in Elestio dashboard)
+environments:
+  - key: "PORT"
+    value: "8080"
+  - key: "OPENAI_API_KEY"
+    value: ""
+  - key: "OPENAI_MODEL"
+    value: "gpt-4o-mini"
+  - key: "FIRECRAWL_API_KEY"
+    value: ""
+  - key: "FIRECRAWL_API_URL"
+    value: "https://api.firecrawl.dev"
+  - key: "EAN_SEARCH_API_KEY"
+    value: ""
+  - key: "DOCLING_API_KEY"
+    value: ""
+  - key: "API_KEY"
+    value: ""
+
+# Lifecycle scripts
+lifeCycleScripts:
+  postBuild: ""
+  preRun: ""
+  postRun: ""

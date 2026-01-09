@@ -1,5 +1,10 @@
+# EarthFare Product Automation - Elestio Deployment
 FROM python:3.11-slim
 
+# Build args
+ARG INCLUDE_FRONTEND=false
+
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     poppler-utils \
     tesseract-ocr \
@@ -7,6 +12,8 @@ RUN apt-get update && apt-get install -y \
     libtesseract-dev \
     wget \
     git \
+    curl \
+    # Playwright dependencies
     libnss3 \
     libnspr4 \
     libatk1.0-0 \
@@ -24,15 +31,32 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# Copy and install Python dependencies
 COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt && \
     playwright install chromium
 
+# Copy application code
 COPY app /app/app
-COPY frontend/build /app/frontend/build
+
+# Conditionally copy frontend (if exists and enabled)
+COPY frontend/build* /app/frontend/build/ 2>/dev/null || true
+
+# Create non-root user for security
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/healthz || exit 1
 
 EXPOSE 8080
+
+# Environment defaults (override in Elestio)
+ENV PORT=8080 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
