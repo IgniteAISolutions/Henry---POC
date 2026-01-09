@@ -13,6 +13,10 @@ RUN apt-get update && apt-get install -y \
     wget \
     git \
     curl \
+    # Build tools for compiling Python packages
+    gcc \
+    g++ \
+    build-essential \
     # Playwright dependencies
     libnss3 \
     libnspr4 \
