@@ -48,13 +48,14 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware
+# CORS middleware - allow all origins for API access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 def check_key(x_api_key: Optional[str]):
