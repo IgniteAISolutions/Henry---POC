@@ -262,6 +262,34 @@ def format_nutrition_for_metafield(nutrition: Any) -> List[str]:
     return []
 
 
+def format_body_html(text: str) -> str:
+    """
+    Ensure body HTML is properly wrapped in <p> tags for Shopify
+
+    Args:
+        text: Plain text or HTML content
+    Returns:
+        HTML-formatted string with <p> tags
+    """
+    if not text:
+        return ""
+
+    # If already has <p> tags, return as-is
+    if "<p>" in text.lower():
+        return text
+
+    # Wrap in <p> tags
+    # Split by double newlines for paragraphs
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+
+    if not paragraphs:
+        # Single paragraph
+        return f"<p>{text.strip()}</p>"
+
+    # Multiple paragraphs
+    return "".join([f"<p>{p}</p>" for p in paragraphs])
+
+
 def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     """
     Map generated product content to Shopify CSV format
@@ -279,8 +307,9 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     # Get brand - prefer generated, fallback to product data
     brand = descriptions.get("brand", "") or product.get("brand", "")
 
-    # Get body HTML
-    body_html = descriptions.get("body_html", "") or descriptions.get("longDescription", "")
+    # Get body HTML - ensure it's wrapped in <p> tags
+    body_html_raw = descriptions.get("body_html", "") or descriptions.get("longDescription", "")
+    body_html = format_body_html(body_html_raw)
 
     # Get dietary preferences - prefer generated, fallback to normalized
     dietary = descriptions.get("dietary_preferences", [])
@@ -300,9 +329,10 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     nutrition = format_nutrition_for_metafield(nutrition_raw)
 
     # Build Shopify CSV row
-    # NOTE: ID column removed - this export is for NEW products only
-    # For updates to existing products, use Shopify admin export and add ID column
+    # ID column included but empty for new products (Matrixify format compatibility)
+    # For updates to existing products, populate ID from Shopify admin export
     return {
+        "ID": "",  # Empty for new products, Shopify assigns ID on import
         "Handle": slugify(title),
         "Title": title,
         "Body HTML": body_html,
@@ -328,10 +358,11 @@ def map_products_to_shopify(products: List[Dict[str, Any]]) -> List[Dict[str, st
     return [map_to_shopify_csv(product) for product in products]
 
 
-# Shopify CSV column headers (for NEW product imports via Matrixify)
-# NOTE: ID column intentionally omitted - only for new products
-# For updates, export from Shopify admin to get IDs
+# Shopify CSV column headers (Matrixify format)
+# ID column included but empty for new products - Shopify assigns IDs on import
+# For updates, export from Shopify admin to get existing IDs
 SHOPIFY_CSV_HEADERS = [
+    "ID",
     "Handle",
     "Title",
     "Body HTML",
