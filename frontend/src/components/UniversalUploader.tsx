@@ -1,4 +1,5 @@
 // src/components/UniversalUploader.tsx
+// EarthFare Eco Supermarket - Product Automation
 import React, { useRef, useState } from 'react';
 
 type Product = {
@@ -15,45 +16,78 @@ type Product = {
     shortDescription: string;
     longDescription: string;
     metaDescription: string;
+    title?: string;
+    body_html?: string;
   };
+  dietary_preferences?: string[];
+  allergens?: string[];
+  ingredients?: string;
+  nutrition?: any;
   images?: string[];
   price?: string | null;
 };
 
 type Step = 'input' | 'processing' | 'complete';
-type Tab = 'pdf-catalogue' | 'csv' | 'product-image' | 'manual-codes' | 'website-url' | 'free-text';
+type Tab = 'csv' | 'manual-codes' | 'website-url';
 
+// EarthFare grocery categories
 type Category =
-  | 'Clothing'
-  | 'Electricals'
-  | 'Bakeware, Cookware'
-  | 'Dining, Drink, Living'
-  | 'Knives, Cutlery'
-  | 'Food Prep & Tools';
+  | 'Store Cupboard'
+  | 'Fresh Produce'
+  | 'Dairy & Alternatives'
+  | 'Bakery'
+  | 'Frozen'
+  | 'Drinks'
+  | 'Health & Beauty'
+  | 'Household'
+  | 'Baby & Kids'
+  | 'Pet Care';
 
 const CATEGORY_OPTIONS: readonly Category[] = [
-  'Clothing',
-  'Electricals',
-  'Bakeware, Cookware',
-  'Dining, Drink, Living',
-  'Knives, Cutlery',
-  'Food Prep & Tools',
+  'Store Cupboard',
+  'Fresh Produce',
+  'Dairy & Alternatives',
+  'Bakery',
+  'Frozen',
+  'Drinks',
+  'Health & Beauty',
+  'Household',
+  'Baby & Kids',
+  'Pet Care',
 ] as const;
 
-const API_BASE = 
+// EarthFare brand colors
+const COLORS = {
+  primary: '#2d5a27',      // Deep forest green
+  primaryLight: '#4a7c44', // Lighter green
+  primaryDark: '#1e3d1a',  // Darker green
+  secondary: '#8bc34a',    // Fresh lime green
+  accent: '#f9a825',       // Warm amber
+  background: '#f5f7f3',   // Light sage
+  cardBg: '#ffffff',
+  text: '#2c3e2a',
+  textLight: '#5d6b5a',
+  border: '#d4ddd2',
+  success: '#43a047',
+  warning: '#ff9800',
+  error: '#e53935',
+};
+
+const API_BASE =
   process.env.REACT_APP_API_BASE ||
   (process.env.REACT_APP_BACKEND_URL ? process.env.REACT_APP_BACKEND_URL + '/api' : '') ||
-  'https://docling-service-u53318.vm.elestio.app/api';
+  '/api';
 
-console.log('FastAPI Backend URL:', API_BASE);
+console.log('EarthFare API URL:', API_BASE);
 
-const BORDER_THIN = '1px solid #ddd';
+const BORDER_THIN = `1px solid ${COLORS.border}`;
 const INPUT_BASE = {
   width: '100%',
-  padding: '10px',
+  padding: '12px',
   border: BORDER_THIN,
-  borderRadius: '6px',
+  borderRadius: '8px',
   fontSize: '1rem',
+  backgroundColor: COLORS.cardBg,
 } as const;
 
 const toMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -75,7 +109,7 @@ async function postJson(path: string, body: any, timeoutMs: number = 120000) {
   try {
     const res = await fetch(`${API_BASE}/${path}`, {
       method: 'POST',
-      headers: { 
+      headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.REACT_APP_DOCLING_API_KEY || '',
       },
@@ -137,39 +171,6 @@ async function postForm(path: string, form: FormData, timeoutMs: number = 600000
   }
 }
 
-async function processPDF(file: File, category: Category, onProgress: (msg: string) => void): Promise<Product[]> {
-  console.log('[PDF] Starting...');
-  if (!file) throw new Error('No file selected');
-  if (!category) throw new Error('Please select a category');
-
-  onProgress('Uploading PDF (this may take 3-7 minutes)...');
-
-  const formData = new FormData();
-  formData.append('file', file, file.name);
-
-  const extractJson = await postForm('extract-pdf-products', formData, 600000);
-  const products = normaliseExtractResponse(extractJson);
-  
-  if (!products || products.length === 0) {
-    throw new Error('No products detected in the PDF.');
-  }
-
-  const productsWithCategory = products.map(p => ({ ...p, category }));
-  onProgress(`Generating brand voice for ${products.length} products...`);
-
-  const bv = await postJson('generate-brand-voice', { products: productsWithCategory, category }, 120000);
-  const voiced = Array.isArray(bv?.products) ? bv.products : [];
-
-  if (voiced.length === 0) {
-    console.warn('[PDF] No brand voice generated');
-    onProgress(`Processed ${products.length} products (brand voice unavailable)`);
-    return productsWithCategory;
-  }
-
-  onProgress(`Successfully processed ${voiced.length} products!`);
-  return voiced;
-}
-
 async function processCSV(file: File, category: Category, onProgress: (msg: string) => void): Promise<Product[]> {
   console.log('[CSV] Starting...');
   onProgress('Uploading CSV...');
@@ -187,27 +188,6 @@ async function processCSV(file: File, category: Category, onProgress: (msg: stri
   }
 
   onProgress(`Successfully processed ${products.length} products!`);
-  return products;
-}
-
-async function processImage(file: File, category: Category, additionalText: string, onProgress: (msg: string) => void): Promise<Product[]> {
-  console.log('[Image] Starting AI Vision...');
-  onProgress('Uploading image...');
-
-  const formData = new FormData();
-  formData.append('file', file, file.name);
-  formData.append('category', category);
-  formData.append('additional_text', additionalText);
-
-  onProgress('Analyzing image with AI...');
-  const result = await postForm('parse-image', formData, 120000);
-  const products = normaliseExtractResponse(result);
-
-  if (!products || products.length === 0) {
-    throw new Error('No product info detected in image.');
-  }
-
-  onProgress(`Successfully extracted ${products.length} products!`);
   return products;
 }
 
@@ -244,34 +224,54 @@ async function processURL(url: string, category: Category, onProgress: (msg: str
     return products;
   } catch (error: any) {
     if (error.message && error.message.includes('blocking')) {
-      throw new Error('⚠️ This website blocked our scraper.\n\nPlease:\n1. Copy the product details from the website\n2. Switch to the "Free Text" tab\n3. Paste the information there');
+      throw new Error('⚠️ This website blocked our scraper. Please try using CSV upload instead.');
     }
     throw error;
   }
 }
 
-async function processFreeText(text: string, category: Category, onProgress: (msg: string) => void): Promise<Product[]> {
-  console.log('[FreeText] Starting...');
-  onProgress('Processing text...');
+// ============================================================
+// EXPORT FUNCTIONS
+// ============================================================
 
-  const result = await postJson('process-text', { text, category });
-  const products = normaliseExtractResponse(result);
+async function exportToShopify(products: Product[]): Promise<void> {
+  console.log(`[Export] Exporting ${products.length} products to Shopify CSV...`);
 
-  if (!products || products.length === 0) {
-    throw new Error('Failed to process text');
+  try {
+    const response = await fetch(`${API_BASE}/export-shopify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.REACT_APP_DOCLING_API_KEY || '',
+      },
+      body: JSON.stringify({ products }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Export failed: ${errorText}`);
+    }
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `earthfare_shopify_import_${Date.now()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    console.log(`[Export] Successfully exported ${products.length} products to Shopify format`);
+  } catch (error) {
+    console.error('[Export] Error:', error);
+    throw error;
   }
-
-  onProgress('Successfully processed!');
-  return products;
 }
-
-// ============================================================
-// EXPORT FUNCTIONS - Business Central format via API
-// ============================================================
 
 async function exportToBusinessCentral(products: Product[], format: 'csv' | 'excel' = 'csv'): Promise<void> {
   console.log(`[Export] Exporting ${products.length} products as ${format.toUpperCase()}...`);
-  
+
   try {
     const response = await fetch(`${API_BASE}/export`, {
       method: 'POST',
@@ -290,21 +290,18 @@ async function exportToBusinessCentral(products: Product[], format: 'csv' | 'exc
       throw new Error(`Export failed: ${errorText}`);
     }
 
-    // Get the blob from response
     const blob = await response.blob();
-    
-    // Create download link
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = format === 'excel' 
-      ? `products_export_${Date.now()}.xlsx` 
-      : `products_export_${Date.now()}.csv`;
+    a.download = format === 'excel'
+      ? `earthfare_export_${Date.now()}.xlsx`
+      : `earthfare_export_${Date.now()}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     console.log(`[Export] Successfully exported ${products.length} products`);
   } catch (error) {
     console.error('[Export] Error:', error);
@@ -312,48 +309,10 @@ async function exportToBusinessCentral(products: Product[], format: 'csv' | 'exc
   }
 }
 
-// Legacy client-side export (fallback if API fails)
-function exportToCSVLegacy(products: Product[]) {
-  const headers = ['SKU', 'Barcode', 'Description', 'Net Weight (KG)', 'Short Description', 'Long Description', 'IMAGE', 'IMAGE 1', 'IMAGE 2', 'IMAGE 3', 'IMAGE 4', 'IMAGE 5'];
-  const rows = products.map(p => {
-    const images = p.images || [];
-    const sku = p.sku || '';
-    const name = (p.name || '').replace(/ /g, '-').replace(/[^\w-]/g, '').substring(0, 50);
-    
-    return [
-      sku,
-      p.barcode || '',
-      p.name || '',
-      p.specifications?.weight || '',
-      `<p>${(p.descriptions?.shortDescription || '').split('\n').filter(l => l.trim()).join(',<br>')}</p>`,
-      p.descriptions?.longDescription || '',
-      images[0] || `products\\${sku}-${name}.jpg`,
-      images[1] || `products\\${sku}-${name}-1.jpg`,
-      images[2] || `products\\${sku}-${name}-2.jpg`,
-      images[3] || `products\\${sku}-${name}-3.jpg`,
-      images[4] || `products\\${sku}-${name}-4.jpg`,
-      images[5] || `products\\${sku}-${name}-5.jpg`,
-    ];
-  });
-
-  const csvContent = '\uFEFF' + [
-    headers.join(','),
-    ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')),
-  ].join('\n');
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `products-${Date.now()}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
 const CategorySelect: React.FC<{ id: string; value?: string; suggested?: string; onChange: (val: string) => void; }> = ({ id, value, suggested, onChange }) => (
   <div style={{ marginBottom: '0.5rem' }}>
-    <label htmlFor={id} style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Category:</label>
-    <select id={id} value={value || ''} onChange={(e) => onChange(e.target.value)} style={{ ...INPUT_BASE }}>
+    <label htmlFor={id} style={{ fontWeight: 600, display: 'block', marginBottom: '6px', color: COLORS.text }}>Category:</label>
+    <select id={id} value={value || ''} onChange={(e) => onChange(e.target.value)} style={{ ...INPUT_BASE, cursor: 'pointer' }}>
       <option value="">-- Select Category --</option>
       {CATEGORY_OPTIONS.map((cat) => (
         <option key={cat} value={cat}>{cat} {suggested === cat ? ' ⭐' : ''}</option>
@@ -364,10 +323,9 @@ const CategorySelect: React.FC<{ id: string; value?: string; suggested?: string;
 
 const UniversalUploader: React.FC = () => {
   const [step, setStep] = useState<Step>('input');
-  const [activeTab, setActiveTab] = useState<Tab>('pdf-catalogue');
+  const [activeTab, setActiveTab] = useState<Tab>('csv');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');
-  const [imageAdditionalText, setImageAdditionalText] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [editingProducts, setEditingProducts] = useState<Product[]>([]);
   const [preSelectedCategory, setPreSelectedCategory] = useState<Category | ''>('');
@@ -392,22 +350,10 @@ const UniversalUploader: React.FC = () => {
       let products: Product[] = [];
 
       switch (activeTab) {
-        case 'pdf-catalogue':
-          if (!selectedFile) throw new Error('No file selected');
-          if (!preSelectedCategory) throw new Error('Please select a category');
-          products = await processPDF(selectedFile, preSelectedCategory as Category, setStatusMsg);
-          break;
-
         case 'csv':
           if (!selectedFile) throw new Error('No file selected');
           if (!preSelectedCategory) throw new Error('Please select a category');
           products = await processCSV(selectedFile, preSelectedCategory, setStatusMsg);
-          break;
-
-        case 'product-image':
-          if (!selectedFile) throw new Error('No file selected');
-          if (!preSelectedCategory) throw new Error('Please select a category');
-          products = await processImage(selectedFile, preSelectedCategory, imageAdditionalText, setStatusMsg);
           break;
 
         case 'manual-codes':
@@ -419,12 +365,6 @@ const UniversalUploader: React.FC = () => {
           if (!textInput.trim()) throw new Error('No URL entered');
           if (!preSelectedCategory) throw new Error('Please select a category');
           products = await processURL(textInput, preSelectedCategory, setStatusMsg);
-          break;
-
-        case 'free-text':
-          if (!textInput.trim()) throw new Error('No text entered');
-          if (!preSelectedCategory) throw new Error('Please select a category');
-          products = await processFreeText(textInput, preSelectedCategory, setStatusMsg);
           break;
       }
 
@@ -441,15 +381,27 @@ const UniversalUploader: React.FC = () => {
   };
 
   // Export handlers
+  const handleExportShopify = async () => {
+    setIsExporting(true);
+    try {
+      await exportToShopify(editingProducts);
+      setStatusMsg('Shopify CSV exported successfully!');
+    } catch (error) {
+      console.error('Shopify export failed:', error);
+      alert(`Shopify export failed: ${toMessage(error)}`);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleExportCSV = async () => {
     setIsExporting(true);
     try {
       await exportToBusinessCentral(editingProducts, 'csv');
       setStatusMsg('CSV exported successfully!');
     } catch (error) {
-      console.warn('API export failed, using legacy export:', error);
-      exportToCSVLegacy(editingProducts);
-      setStatusMsg('CSV exported (legacy mode)');
+      console.error('CSV export failed:', error);
+      alert(`CSV export failed: ${toMessage(error)}`);
     } finally {
       setIsExporting(false);
     }
@@ -472,7 +424,6 @@ const UniversalUploader: React.FC = () => {
     setStep('input');
     setSelectedFile(null);
     setTextInput('');
-    setImageAdditionalText('');
     setStatusMsg('');
     setEditingProducts([]);
     setPreSelectedCategory('');
@@ -514,16 +465,16 @@ const UniversalUploader: React.FC = () => {
 
     try {
       setStatusMsg(`Regenerating product ${product.name || product.sku}...`);
-      
-      const bv = await postJson('generate-brand-voice', { 
-        products: [product], 
-        category: product.category 
+
+      const bv = await postJson('generate-brand-voice', {
+        products: [product],
+        category: product.category
       }, 120000);
-      
+
       const voiced = Array.isArray(bv?.products) ? bv.products[0] : null;
-      
+
       if (voiced) {
-        setEditingProducts(prev => 
+        setEditingProducts(prev =>
           prev.map(p => p.id === id ? { ...voiced, id } : p)
         );
         setStatusMsg('Product regenerated successfully!');
@@ -533,79 +484,98 @@ const UniversalUploader: React.FC = () => {
       alert(`Regeneration failed: ${toMessage(err)}`);
     }
   };
-  
+
+  // Only CSV, Search Code, and Website URL tabs
   const tabs: { key: Tab; label: string; icon: string }[] = [
-    { key: 'pdf-catalogue', label: 'PDF Catalogue', icon: '📄' },
     { key: 'csv', label: 'CSV Upload', icon: '📊' },
-    { key: 'product-image', label: 'Product Image', icon: '📸' },
     { key: 'manual-codes', label: 'Search Code', icon: '🔍' },
     { key: 'website-url', label: 'Website URL', icon: '🌐' },
-    { key: 'free-text', label: 'Free Text', icon: '📝' },
   ];
 
-  const isFileTab = ['pdf-catalogue', 'csv', 'product-image'].includes(activeTab);
+  const isFileTab = activeTab === 'csv';
 
   const canProcess = (() => {
-    if (activeTab === 'pdf-catalogue' || activeTab === 'product-image') return !!selectedFile && !!preSelectedCategory;
     if (activeTab === 'csv') return !!selectedFile && !!preSelectedCategory;
     if (activeTab === 'manual-codes') return !!(searchSKU.trim() || searchBarcode.trim() || searchEAN.trim() || searchText.trim()) && !!preSelectedCategory;
     if (activeTab === 'website-url') return !!textInput.trim() && !!preSelectedCategory;
-    if (activeTab === 'free-text') return !!textInput.trim() && !!preSelectedCategory;
     return false;
   })();
 
-  // Render product editor (used in both processing and complete steps)
+  // Render product editor (used in complete step)
   const renderProductEditor = () => (
     <>
       {/* Export Buttons */}
       <div style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        <button 
-          onClick={handleExportCSV} 
-          disabled={!editingProducts.length || isExporting} 
-          style={{ 
-            background: '#27ae60', 
-            color: 'white', 
-            border: 'none', 
-            padding: '12px 20px', 
-            borderRadius: '6px', 
-            cursor: editingProducts.length && !isExporting ? 'pointer' : 'not-allowed', 
+        <button
+          onClick={handleExportShopify}
+          disabled={!editingProducts.length || isExporting}
+          style={{
+            background: COLORS.primary,
+            color: 'white',
+            border: 'none',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            cursor: editingProducts.length && !isExporting ? 'pointer' : 'not-allowed',
             fontWeight: 600,
             fontSize: '1rem',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+            transition: 'all 0.2s ease',
           }}
         >
-          📥 Export CSV (Business Central)
+          🛒 Export to Shopify
         </button>
-        <button 
-          onClick={handleExportExcel} 
-          disabled={!editingProducts.length || isExporting} 
-          style={{ 
-            background: '#2980b9', 
-            color: 'white', 
-            border: 'none', 
-            padding: '12px 20px', 
-            borderRadius: '6px', 
-            cursor: editingProducts.length && !isExporting ? 'pointer' : 'not-allowed', 
+        <button
+          onClick={handleExportCSV}
+          disabled={!editingProducts.length || isExporting}
+          style={{
+            background: COLORS.primaryLight,
+            color: 'white',
+            border: 'none',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            cursor: editingProducts.length && !isExporting ? 'pointer' : 'not-allowed',
             fontWeight: 600,
             fontSize: '1rem',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          }}
+        >
+          📥 Export CSV
+        </button>
+        <button
+          onClick={handleExportExcel}
+          disabled={!editingProducts.length || isExporting}
+          style={{
+            background: COLORS.secondary,
+            color: COLORS.primaryDark,
+            border: 'none',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            cursor: editingProducts.length && !isExporting ? 'pointer' : 'not-allowed',
+            fontWeight: 600,
+            fontSize: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
           }}
         >
           📊 Export Excel
         </button>
-        <button 
-          onClick={handleReset} 
-          style={{ 
-            background: '#e0e0e0', 
-            color: '#2c3e50', 
-            border: 'none', 
-            padding: '12px 20px', 
-            borderRadius: '6px', 
-            cursor: 'pointer', 
+        <button
+          onClick={handleReset}
+          style={{
+            background: '#e8ebe6',
+            color: COLORS.text,
+            border: 'none',
+            padding: '14px 24px',
+            borderRadius: '8px',
+            cursor: 'pointer',
             fontWeight: 600,
             fontSize: '1rem',
           }}
@@ -613,61 +583,83 @@ const UniversalUploader: React.FC = () => {
           🔄 Start Over
         </button>
         {isExporting && (
-          <span style={{ color: '#7f8c8d', fontStyle: 'italic' }}>Exporting...</span>
+          <span style={{ color: COLORS.textLight, fontStyle: 'italic' }}>Exporting...</span>
         )}
       </div>
 
       {/* Status Message */}
       {statusMsg && (
-        <div style={{ color: '#27ae60', marginBottom: '1rem', fontSize: '1.1rem', fontWeight: 500 }}>
+        <div style={{ color: COLORS.success, marginBottom: '1rem', fontSize: '1.1rem', fontWeight: 500 }}>
           ✓ {statusMsg}
         </div>
       )}
 
       {/* Products Count */}
-      <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#e8f5e9', borderRadius: '6px', display: 'inline-block' }}>
-        <strong>{editingProducts.length}</strong> product{editingProducts.length === 1 ? '' : 's'} ready for export
+      <div style={{ marginBottom: '1rem', padding: '12px 16px', background: '#e8f5e9', borderRadius: '8px', display: 'inline-block', border: `1px solid ${COLORS.secondary}` }}>
+        <strong style={{ color: COLORS.primary }}>{editingProducts.length}</strong> product{editingProducts.length === 1 ? '' : 's'} ready for export
       </div>
 
       {/* Product Cards */}
       {editingProducts.map((product, idx) => (
-        <div key={product.id} style={{ border: BORDER_THIN, borderRadius: '8px', padding: '1.5rem', marginBottom: '1.5rem', background: '#f9f9f9' }}>
-          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: '#333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div key={product.id} style={{ border: BORDER_THIN, borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem', background: COLORS.cardBg, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+          <h3 style={{ marginTop: 0, marginBottom: '1rem', color: COLORS.primary, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Product {idx + 1}</span>
-            <span style={{ fontSize: '0.85rem', color: '#7f8c8d', fontWeight: 400 }}>
+            <span style={{ fontSize: '0.85rem', color: COLORS.textLight, fontWeight: 400 }}>
               {product.source && `Source: ${product.source}`}
             </span>
           </h3>
           <div style={{ display: 'grid', gap: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
-                <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Name:</label>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Name:</label>
                 <input type="text" value={product.name} onChange={(e) => updateProductName(product.id, e.target.value)} style={{ ...INPUT_BASE }} />
               </div>
               <div>
-                <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>SKU:</label>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>SKU:</label>
                 <input type="text" value={product.sku} onChange={(e) => updateProductSKU(product.id, e.target.value)} style={{ ...INPUT_BASE }} />
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               <div>
-                <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Barcode/EAN:</label>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Barcode/EAN:</label>
                 <input type="text" value={product.barcode || ''} onChange={(e) => updateProductBarcode(product.id, e.target.value)} style={{ ...INPUT_BASE }} placeholder="Enter barcode or EAN" />
               </div>
               <div>
                 <CategorySelect id={`category-${product.id}`} value={product.category} onChange={(val) => updateProductCategory(product.id, val)} />
               </div>
             </div>
+
+            {/* Dietary info display */}
+            {product.dietary_preferences && product.dietary_preferences.length > 0 && (
+              <div>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Dietary:</label>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {product.dietary_preferences.map((diet, i) => (
+                    <span key={i} style={{
+                      background: COLORS.secondary,
+                      color: COLORS.primaryDark,
+                      padding: '4px 12px',
+                      borderRadius: '16px',
+                      fontSize: '0.85rem',
+                      fontWeight: 500
+                    }}>
+                      {diet}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div>
-              <button 
-                onClick={() => regenerateProduct(product.id)} 
-                style={{ 
-                  padding: '8px 16px', 
-                  background: '#3498db', 
-                  color: 'white', 
-                  border: 'none', 
-                  borderRadius: '4px', 
-                  cursor: 'pointer', 
+              <button
+                onClick={() => regenerateProduct(product.id)}
+                style={{
+                  padding: '10px 18px',
+                  background: COLORS.primary,
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
                   fontWeight: 600,
                   fontSize: '0.9rem'
                 }}
@@ -676,18 +668,18 @@ const UniversalUploader: React.FC = () => {
               </button>
             </div>
             <div>
-              <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Short Description:</label>
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Short Description:</label>
               <textarea value={product.descriptions?.shortDescription || ''} onChange={(e) => updateProductDescription(product.id, 'shortDescription', e.target.value)} rows={3} style={{ ...INPUT_BASE, resize: 'vertical' }} />
             </div>
             <div>
-              <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Meta Description:</label>
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Meta Description:</label>
               <textarea value={product.descriptions?.metaDescription || ''} onChange={(e) => updateProductDescription(product.id, 'metaDescription', e.target.value)} rows={2} style={{ ...INPUT_BASE, resize: 'vertical' }} />
-              <span style={{ fontSize: '0.8rem', color: '#7f8c8d' }}>
+              <span style={{ fontSize: '0.8rem', color: COLORS.textLight }}>
                 {(product.descriptions?.metaDescription || '').length}/160 characters
               </span>
             </div>
             <div>
-              <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Long Description:</label>
+              <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Long Description:</label>
               <textarea value={product.descriptions?.longDescription || ''} onChange={(e) => updateProductDescription(product.id, 'longDescription', e.target.value)} rows={6} style={{ ...INPUT_BASE, resize: 'vertical' }} />
             </div>
           </div>
@@ -697,36 +689,34 @@ const UniversalUploader: React.FC = () => {
   );
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem', fontFamily: 'system-ui, sans-serif' }}>
-      {/* Eva Header with Logo */}
+    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '2rem', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+      {/* EarthFare Header */}
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem', marginBottom: '1rem' }}>
-          <img
-            src="/eva.png"
-            alt="Eva Robot"
-            style={{
-              width: '80px',
-              height: '80px',
-              objectFit: 'contain'
-            }}
-            onError={(e) => { 
-              (e.currentTarget as HTMLImageElement).style.display = 'none';
-            }}
-          />
-          <div>
-            <h1 style={{ fontSize: '2.5rem', margin: 0, color: '#2c3e50' }}>Eva</h1>
-            <p style={{ fontSize: '1.2rem', color: '#7f8c8d', margin: '0.5rem 0 0' }}>Enhanced Virtual Assistant</p>
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '12px',
+          marginBottom: '1rem',
+          background: COLORS.primary,
+          padding: '16px 32px',
+          borderRadius: '12px',
+        }}>
+          <span style={{ fontSize: '2.5rem' }}>🌿</span>
+          <div style={{ textAlign: 'left' }}>
+            <h1 style={{ fontSize: '2rem', margin: 0, color: 'white', fontWeight: 700 }}>EarthFare</h1>
+            <p style={{ fontSize: '0.9rem', color: COLORS.secondary, margin: 0, fontWeight: 500 }}>Product Automation</p>
           </div>
         </div>
-        <p style={{ fontSize: '1.1rem', color: '#555' }}>
-          Upload your product data and generate professional descriptions with brand voice
+        <p style={{ fontSize: '1.1rem', color: COLORS.textLight, maxWidth: '600px', margin: '1rem auto 0' }}>
+          Natural, Local, Organic, Ethical, Ecological. Upload your product data and generate professional descriptions with our brand voice.
         </p>
       </div>
 
       {/* INPUT STEP */}
       {step === 'input' && (
         <>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
             {tabs.map((tab) => (
               <button
                 key={tab.key}
@@ -734,7 +724,6 @@ const UniversalUploader: React.FC = () => {
                   setActiveTab(tab.key);
                   setSelectedFile(null);
                   setTextInput('');
-                  setImageAdditionalText('');
                   if (activeTab === 'manual-codes') {
                     setSearchSKU('');
                     setSearchBarcode('');
@@ -745,15 +734,15 @@ const UniversalUploader: React.FC = () => {
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }}
                 style={{
-                  padding: '10px 16px',
-                  border: activeTab === tab.key ? '2px solid #3498db' : BORDER_THIN,
-                  background: activeTab === tab.key ? '#e3f2fd' : 'white',
-                  borderRadius: '6px',
+                  padding: '12px 20px',
+                  border: activeTab === tab.key ? `2px solid ${COLORS.primary}` : BORDER_THIN,
+                  background: activeTab === tab.key ? '#e8f5e9' : 'white',
+                  borderRadius: '8px',
                   cursor: 'pointer',
                   fontWeight: activeTab === tab.key ? 600 : 400,
-                  color: activeTab === tab.key ? '#2c3e50' : '#666',
+                  color: activeTab === tab.key ? COLORS.primary : COLORS.textLight,
                   transition: 'all 0.2s ease',
-                  fontSize: '0.95rem',
+                  fontSize: '1rem',
                 }}
               >
                 {tab.icon} {tab.label}
@@ -769,75 +758,89 @@ const UniversalUploader: React.FC = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept={activeTab === 'pdf-catalogue' ? 'application/pdf' : activeTab === 'csv' ? '.csv' : 'image/*'}
+                  accept=".csv"
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                   id="file-upload"
                 />
-                <label htmlFor="file-upload" style={{ display: 'block', padding: '3rem', border: '2px dashed #bdc3c7', borderRadius: '8px', textAlign: 'center', cursor: 'pointer', background: selectedFile ? '#ecf0f1' : '#f9f9f9', transition: 'all 0.2s ease' }}>
+                <label htmlFor="file-upload" style={{
+                  display: 'block',
+                  padding: '3rem',
+                  border: `2px dashed ${selectedFile ? COLORS.primary : COLORS.border}`,
+                  borderRadius: '12px',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  background: selectedFile ? '#e8f5e9' : COLORS.background,
+                  transition: 'all 0.2s ease'
+                }}>
                   <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>📤</div>
-                  <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: '#2c3e50', fontWeight: 500 }}>
+                  <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: COLORS.text, fontWeight: 500 }}>
                     {selectedFile ? `Selected: ${selectedFile.name}` : 'Click to upload or drag and drop'}
                   </p>
-                  <p style={{ fontSize: '0.9rem', color: '#7f8c8d' }}>
-                    {activeTab === 'pdf-catalogue' && 'PDF files up to 50MB'}
-                    {activeTab === 'csv' && 'CSV files'}
-                    {activeTab === 'product-image' && 'JPG, PNG, or other image formats'}
+                  <p style={{ fontSize: '0.9rem', color: COLORS.textLight }}>
+                    CSV files with product data
                   </p>
                 </label>
-                
-                {activeTab === 'product-image' && (
-                  <div style={{ marginTop: '1rem' }}>
-                    <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Additional Product Information (optional):</label>
-                    <textarea value={imageAdditionalText} onChange={(e) => setImageAdditionalText(e.target.value)} placeholder="Add any extra product details, features, or specifications not visible in the image..." rows={4} style={{ ...INPUT_BASE, resize: 'vertical' }} />
-                  </div>
-                )}
               </>
             )}
 
-            {!isFileTab && activeTab === 'manual-codes' && (
+            {activeTab === 'manual-codes' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <p style={{ fontSize: '0.95rem', color: '#666', marginBottom: '0.5rem' }}>Enter at least one search criterion to find products:</p>
+                <p style={{ fontSize: '0.95rem', color: COLORS.textLight, marginBottom: '0.5rem' }}>Enter at least one search criterion to find products:</p>
                 <div>
-                  <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>SKU:</label>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>SKU:</label>
                   <input type="text" value={searchSKU} onChange={(e) => setSearchSKU(e.target.value)} placeholder="e.g., SKU123" style={{ ...INPUT_BASE }} />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Barcode:</label>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Barcode:</label>
                   <input type="text" value={searchBarcode} onChange={(e) => setSearchBarcode(e.target.value)} placeholder="e.g., 1234567890123" style={{ ...INPUT_BASE }} />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>EAN:</label>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>EAN:</label>
                   <input type="text" value={searchEAN} onChange={(e) => setSearchEAN(e.target.value)} placeholder="e.g., 5012345678900" style={{ ...INPUT_BASE }} />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500, display: 'block', marginBottom: '4px' }}>Text Search:</label>
+                  <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Text Search:</label>
                   <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="e.g., product name or description" style={{ ...INPUT_BASE }} />
                 </div>
               </div>
             )}
 
-            {!isFileTab && activeTab !== 'manual-codes' && (
+            {activeTab === 'website-url' && (
               <>
-                <textarea 
-                  value={textInput} 
-                  onChange={(e) => setTextInput(e.target.value)} 
-                  placeholder={activeTab === 'website-url' ? 'Enter product URL\nExample: http://example.com/product/12345' : 'Enter product description or details...'} 
-                  rows={8} 
-                  style={{ ...INPUT_BASE, resize: 'vertical' }} 
+                <textarea
+                  value={textInput}
+                  onChange={(e) => setTextInput(e.target.value)}
+                  placeholder="Enter supplier product URL&#10;Example: https://www.suma.coop/product/12345"
+                  rows={4}
+                  style={{ ...INPUT_BASE, resize: 'vertical' }}
                 />
-                {activeTab === 'website-url' && (
-                  <p style={{ fontSize: '0.85rem', color: '#e67e22', marginTop: '0.5rem', lineHeight: '1.4' }}>
-                    ⚠️ <strong>Note:</strong> Some websites block automated scraping for security. 
-                    If scraping fails, please use the <strong>Free Text</strong> tab to paste product details manually.
-                  </p>
-                )}
+                <p style={{ fontSize: '0.85rem', color: COLORS.warning, marginTop: '0.5rem', lineHeight: '1.4' }}>
+                  ⚠️ <strong>Note:</strong> Some websites block automated scraping for security.
+                  If scraping fails, please use CSV Upload instead.
+                </p>
               </>
             )}
           </div>
 
-          <button onClick={handleProcess} disabled={!canProcess} style={{ marginTop: '1.5rem', padding: '12px 32px', border: 'none', borderRadius: '6px', background: canProcess ? '#27ae60' : '#bdc3c7', color: '#fff', cursor: canProcess ? 'pointer' : 'not-allowed', fontSize: '1rem', fontWeight: 600, transition: 'all 0.2s ease' }}>
-            Process
+          <button
+            onClick={handleProcess}
+            disabled={!canProcess}
+            style={{
+              marginTop: '1.5rem',
+              padding: '14px 36px',
+              border: 'none',
+              borderRadius: '8px',
+              background: canProcess ? COLORS.primary : '#bdc3c7',
+              color: '#fff',
+              cursor: canProcess ? 'pointer' : 'not-allowed',
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              transition: 'all 0.2s ease',
+              boxShadow: canProcess ? '0 2px 8px rgba(45, 90, 39, 0.3)' : 'none',
+            }}
+          >
+            Process Products
           </button>
         </>
       )}
@@ -845,16 +848,50 @@ const UniversalUploader: React.FC = () => {
       {/* PROCESSING STEP - Show loading */}
       {step === 'processing' && (
         <div style={{ textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⏳</div>
-          <p style={{ fontSize: '1.2rem', color: '#2c3e50', fontWeight: 500 }}>{statusMsg || 'Processing...'}</p>
-          <p style={{ fontSize: '0.9rem', color: '#7f8c8d', marginTop: '0.5rem' }}>
+          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🌿</div>
+          <p style={{ fontSize: '1.2rem', color: COLORS.text, fontWeight: 500 }}>{statusMsg || 'Processing...'}</p>
+          <p style={{ fontSize: '0.9rem', color: COLORS.textLight, marginTop: '0.5rem' }}>
             This may take a few minutes for large files
           </p>
+          <div style={{
+            marginTop: '2rem',
+            width: '200px',
+            height: '4px',
+            background: COLORS.border,
+            borderRadius: '2px',
+            margin: '2rem auto',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: '50%',
+              height: '100%',
+              background: COLORS.primary,
+              borderRadius: '2px',
+              animation: 'pulse 1.5s ease-in-out infinite',
+            }} />
+          </div>
         </div>
       )}
 
       {/* COMPLETE STEP - Show products and export options */}
       {step === 'complete' && renderProductEditor()}
+
+      {/* Footer */}
+      <div style={{
+        marginTop: '4rem',
+        textAlign: 'center',
+        padding: '1.5rem',
+        borderTop: BORDER_THIN,
+        color: COLORS.textLight,
+        fontSize: '0.9rem'
+      }}>
+        <p style={{ margin: 0 }}>
+          🌿 EarthFare Eco Supermarket • Glastonbury, Somerset
+        </p>
+        <p style={{ margin: '0.5rem 0 0', fontSize: '0.8rem' }}>
+          Natural, Local, Organic, Ethical, Ecological
+        </p>
+      </div>
     </div>
   );
 };
