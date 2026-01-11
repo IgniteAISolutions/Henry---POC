@@ -50,6 +50,42 @@ ALLOWED_CATEGORIES = [
     "Pet Care",
 ]
 
+# Forbidden phrases - EarthFare specific
+FORBIDDEN_PHRASES = [
+    "EarthFare",
+    "save the planet",
+    "you should",
+    "you must",
+    "conventional",
+    "supermarket",
+    "mass-produced",
+    "Sainsbury",
+    "Marks and Spencer",
+    "Tesco",
+    "imported from"
+]
+
+# SEO Configuration
+SEO_META_MIN_LENGTH = 150
+SEO_META_MAX_LENGTH = 160
+BANNED_SEO_KEYWORDS = {
+    "shop", "shops", "shopping",
+    "buy", "order", "orders", "price", "prices", "sale",
+    "cheap", "discount", "bargain"
+}
+
+# CSV Export Configuration
+CSV_BOM = "\ufeff"
+CSV_DEFAULT_HEADERS = [
+    "sku", "barcode", "name",
+    "shortDescription", "longDescription", "metaDescription",
+    "weightGrams", "weightHuman"
+]
+
+# Text Processing
+TEXT_MIN_LENGTH = 10
+TEXT_MAX_LENGTH = 10000
+
 __all__ = [
     "SUPPLIER_CONFIGS",
     "SOURCE_WEIGHTS",
@@ -65,4 +101,12 @@ __all__ = [
     "OPENAI_TIMEOUT",
     "ALLOWED_CATEGORIES",
     "ALLOWED_SPECS",
+    "FORBIDDEN_PHRASES",
+    "SEO_META_MIN_LENGTH",
+    "SEO_META_MAX_LENGTH",
+    "BANNED_SEO_KEYWORDS",
+    "CSV_BOM",
+    "CSV_DEFAULT_HEADERS",
+    "TEXT_MIN_LENGTH",
+    "TEXT_MAX_LENGTH",
 ]
