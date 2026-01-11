@@ -3,18 +3,20 @@ import os
 import logging
 from pathlib import Path
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
-# Configure logging
+# Configure logging - show everything during debugging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.info("🚀 Starting EarthFare API...")
 
 # Import service modules
 try:
@@ -48,15 +50,57 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware - allow all origins for API access
+# Custom CORS middleware for explicit control
+class CORSHandler(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Log every request for debugging
+        logger.debug(f"📨 {request.method} {request.url.path} from {request.headers.get('origin', 'unknown')}")
+
+        # Handle preflight OPTIONS requests explicitly
+        if request.method == "OPTIONS":
+            logger.info(f"✅ Handling OPTIONS preflight for {request.url.path}")
+            return Response(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Max-Age": "86400",
+                }
+            )
+
+        # Process the actual request
+        response = await call_next(request)
+
+        # Add CORS headers to all responses
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+
+        return response
+
+# Add custom CORS handler FIRST (before other middleware)
+app.add_middleware(CORSHandler)
+
+# Also keep standard CORS middleware as backup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 50)
+    logger.info("🌿 EarthFare API Started Successfully!")
+    logger.info(f"📁 Frontend dir: {FRONTEND_BUILD_DIR}")
+    logger.info(f"🔑 API Key configured: {bool(API_KEY)}")
+    logger.info(f"🤖 OpenAI configured: {bool(os.getenv('OPENAI_API_KEY'))}")
+    logger.info("=" * 50)
 
 def check_key(x_api_key: Optional[str]):
     """Validate API key if configured"""
@@ -89,6 +133,29 @@ class URLScraperRequest(BaseModel):
 # ============================================================
 # API ENDPOINTS
 # ============================================================
+
+@app.get("/")
+async def root():
+    """Root endpoint - confirms API is running"""
+    return {
+        "service": "EarthFare Product Automation API",
+        "status": "running",
+        "version": "2.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint"""
+    return {
+        "message": "EarthFare API is running",
+        "endpoints": [
+            "/api/parse-csv",
+            "/api/scrape-url",
+            "/api/export-shopify",
+            "/api/generate-brand-voice"
+        ]
+    }
 
 @app.get("/healthz")
 async def healthz():
