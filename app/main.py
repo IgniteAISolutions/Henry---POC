@@ -18,13 +18,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 logger.info("🚀 Starting EarthFare API...")
 
-# Import service modules
+# Import service modules (minimal - no PDF/image processing)
 try:
-    from app.services import csv_parser, image_processor, text_processor, product_search, url_scraper, brand_voice, pdf_processor, export_csv
+    from app.services import csv_parser, text_processor, product_search, url_scraper, brand_voice, export_csv
     logger.info("✅ All service modules imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import service modules: {e}")
-    csv_parser = image_processor = text_processor = product_search = url_scraper = brand_voice = pdf_processor = None
+    csv_parser = text_processor = product_search = url_scraper = brand_voice = export_csv = None
 
 # Import EarthFare-specific modules
 try:
@@ -205,44 +205,6 @@ async def parse_csv_endpoint(
         logger.error(f"Processing error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/parse-image")
-async def parse_image_endpoint(
-    file: UploadFile = File(...),
-    category: str = Form(...),
-    additional_text: str = Form(default=""),
-    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
-):
-    """Parse image via AI Vision and generate brand voice"""
-    check_key(x_api_key)
-    
-    try:
-        if category not in ALLOWED_CATEGORIES:
-            raise HTTPException(status_code=400, detail="Invalid category")
-        
-        logger.info(f"📸 Processing image for category: {category}")
-        
-        if not image_processor:
-            raise HTTPException(status_code=503, detail="Image processor not available")
-        
-        file_content = await file.read()
-        products = await image_processor.process(
-            file_content, 
-            category, 
-            file.filename,
-            additional_context=additional_text
-        )
-        
-        if brand_voice:
-            try:
-                products = await brand_voice.generate(products, category)
-            except Exception as e:
-                logger.warning(f"⚠️ Brand voice failed: {e}")
-        
-        return ProcessingResponse(success=True, products=products)
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
 @app.post("/api/process-text")
 async def process_text_endpoint(
     request: TextProcessorRequest,
@@ -341,43 +303,6 @@ async def generate_brand_voice_endpoint(
         return ProcessingResponse(success=True, products=products)
     except Exception as e:
         logger.error(f"Brand voice error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/extract-pdf-products")
-async def extract_pdf_products_endpoint(
-    file: UploadFile = File(...),
-    category: str = Form(default="Electricals"),
-    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
-):
-    """Extract products from PDF using Docling"""
-    check_key(x_api_key)
-    
-    try:
-        if category not in ALLOWED_CATEGORIES:
-            raise HTTPException(status_code=400, detail="Invalid category")
-        
-        logger.info(f"📄 Processing PDF for category: {category}")
-        
-        if not pdf_processor:
-            raise HTTPException(status_code=503, detail="PDF processor not available")
-        
-        file_content = await file.read()
-        products = await pdf_processor.process(file_content, category)
-        
-        logger.info(f"✅ Extracted {len(products)} products from PDF")
-        
-        # Add brand voice generation (like other endpoints)
-        if brand_voice and products:
-            try:
-                products = await brand_voice.generate(products, category)
-                logger.info(f"✅ Brand voice generated for {len(products)} products")
-            except Exception as e:
-                logger.warning(f"⚠️ Brand voice failed: {e}")
-        
-        return ProcessingResponse(success=True, products=products)
-            
-    except Exception as e:
-        logger.error(f"PDF error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/export")
