@@ -486,26 +486,28 @@ async def process_earthfare_endpoint(
 # SERVE REACT FRONTEND
 # ============================================================
 
-# Mount static files
-if FRONTEND_BUILD_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(FRONTEND_BUILD_DIR / "static")), name="static")
-    
+# Mount static files (only if static subdir exists - frontend served from Vercel)
+static_dir = FRONTEND_BUILD_DIR / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+    logger.info(f"✅ Mounted static files from {static_dir}")
+
     @app.get("/{full_path:path}")
     async def serve_react_app(full_path: str):
         """Serve React app for all non-API routes"""
         # If path starts with /api, let FastAPI handle it
         if full_path.startswith("api/"):
             raise HTTPException(status_code=404)
-        
+
         # Check if specific file exists
         file_path = FRONTEND_BUILD_DIR / full_path
         if file_path.is_file():
             return FileResponse(file_path)
-        
+
         # Otherwise serve index.html (SPA fallback)
         return FileResponse(FRONTEND_BUILD_DIR / "index.html")
 else:
-    logger.warning("⚠️ Frontend build directory not found. Run 'cd frontend && npm run build'")
+    logger.info("ℹ️ No frontend build - API-only mode (frontend served from Vercel)")
 
 if __name__ == "__main__":
     import uvicorn
