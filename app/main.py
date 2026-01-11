@@ -8,7 +8,6 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from starlette.middleware.base import BaseHTTPMiddleware
 
 # Configure logging - show everything during debugging
 logging.basicConfig(
@@ -50,46 +49,26 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Custom CORS middleware for explicit control
-class CORSHandler(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        # Log every request for debugging
-        logger.debug(f"📨 {request.method} {request.url.path} from {request.headers.get('origin', 'unknown')}")
+# CORS Configuration - Allow Vercel frontend
+# IMPORTANT: No trailing slashes on origins!
+origins = [
+    "https://earthfare.vercel.app",
+    "https://earthfare-git-claude-earthfare-b-54053e-chris-projects-562b0f0c.vercel.app",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+]
 
-        # Handle preflight OPTIONS requests explicitly
-        if request.method == "OPTIONS":
-            logger.info(f"✅ Handling OPTIONS preflight for {request.url.path}")
-            return Response(
-                status_code=200,
-                headers={
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Max-Age": "86400",
-                }
-            )
-
-        # Process the actual request
-        response = await call_next(request)
-
-        # Add CORS headers to all responses
-        response.headers["Access-Control-Allow-Origin"] = "*"
-        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        response.headers["Access-Control-Allow-Headers"] = "*"
-
-        return response
-
-# Add custom CORS handler FIRST (before other middleware)
-app.add_middleware(CORSHandler)
-
-# Also keep standard CORS middleware as backup
+# Add CORS middleware - this MUST be before routes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_origins=["*"],  # Allow all origins for now to debug
+    allow_credentials=False,  # Must be False when using "*"
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
+    max_age=86400,  # Cache preflight for 24 hours
 )
 
 # Startup event
