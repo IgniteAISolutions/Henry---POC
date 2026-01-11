@@ -3,26 +3,28 @@ import os
 import logging
 from pathlib import Path
 from typing import List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header, Request, Response
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.middleware.base import BaseHTTPMiddleware
 
-# Configure logging
+# Configure logging - show everything during debugging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+logger.info("🚀 Starting EarthFare API...")
 
-# Import service modules
+# Import service modules (minimal - no PDF/image processing)
 try:
-    from app.services import csv_parser, image_processor, text_processor, product_search, url_scraper, brand_voice, pdf_processor, export_csv
+    from app.services import csv_parser, text_processor, product_search, url_scraper, brand_voice, export_csv
     logger.info("✅ All service modules imported successfully")
 except ImportError as e:
     logger.error(f"❌ Failed to import service modules: {e}")
-    csv_parser = image_processor = text_processor = product_search = url_scraper = brand_voice = pdf_processor = None
+    csv_parser = text_processor = product_search = url_scraper = brand_voice = export_csv = None
 
 # Import EarthFare-specific modules
 try:
@@ -48,15 +50,57 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS middleware - allow all origins for API access
+# Custom CORS middleware for explicit control
+class CORSHandler(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # Log every request for debugging
+        logger.debug(f"📨 {request.method} {request.url.path} from {request.headers.get('origin', 'unknown')}")
+
+        # Handle preflight OPTIONS requests explicitly
+        if request.method == "OPTIONS":
+            logger.info(f"✅ Handling OPTIONS preflight for {request.url.path}")
+            return Response(
+                status_code=200,
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Max-Age": "86400",
+                }
+            )
+
+        # Process the actual request
+        response = await call_next(request)
+
+        # Add CORS headers to all responses
+        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "*"
+
+        return response
+
+# Add custom CORS handler FIRST (before other middleware)
+app.add_middleware(CORSHandler)
+
+# Also keep standard CORS middleware as backup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Must be False when using allow_origins=["*"]
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 50)
+    logger.info("🌿 EarthFare API Started Successfully!")
+    logger.info(f"📁 Frontend dir: {FRONTEND_BUILD_DIR}")
+    logger.info(f"🔑 API Key configured: {bool(API_KEY)}")
+    logger.info(f"🤖 OpenAI configured: {bool(os.getenv('OPENAI_API_KEY'))}")
+    logger.info("=" * 50)
 
 def check_key(x_api_key: Optional[str]):
     """Validate API key if configured"""
@@ -89,6 +133,29 @@ class URLScraperRequest(BaseModel):
 # ============================================================
 # API ENDPOINTS
 # ============================================================
+
+@app.get("/")
+async def root():
+    """Root endpoint - confirms API is running"""
+    return {
+        "service": "EarthFare Product Automation API",
+        "status": "running",
+        "version": "2.0.0",
+        "docs": "/docs"
+    }
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint"""
+    return {
+        "message": "EarthFare API is running",
+        "endpoints": [
+            "/api/parse-csv",
+            "/api/scrape-url",
+            "/api/export-shopify",
+            "/api/generate-brand-voice"
+        ]
+    }
 
 @app.get("/healthz")
 async def healthz():
@@ -136,44 +203,6 @@ async def parse_csv_endpoint(
         )
     except Exception as e:
         logger.error(f"Processing error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/parse-image")
-async def parse_image_endpoint(
-    file: UploadFile = File(...),
-    category: str = Form(...),
-    additional_text: str = Form(default=""),
-    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
-):
-    """Parse image via AI Vision and generate brand voice"""
-    check_key(x_api_key)
-    
-    try:
-        if category not in ALLOWED_CATEGORIES:
-            raise HTTPException(status_code=400, detail="Invalid category")
-        
-        logger.info(f"📸 Processing image for category: {category}")
-        
-        if not image_processor:
-            raise HTTPException(status_code=503, detail="Image processor not available")
-        
-        file_content = await file.read()
-        products = await image_processor.process(
-            file_content, 
-            category, 
-            file.filename,
-            additional_context=additional_text
-        )
-        
-        if brand_voice:
-            try:
-                products = await brand_voice.generate(products, category)
-            except Exception as e:
-                logger.warning(f"⚠️ Brand voice failed: {e}")
-        
-        return ProcessingResponse(success=True, products=products)
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/process-text")
@@ -274,43 +303,6 @@ async def generate_brand_voice_endpoint(
         return ProcessingResponse(success=True, products=products)
     except Exception as e:
         logger.error(f"Brand voice error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/extract-pdf-products")
-async def extract_pdf_products_endpoint(
-    file: UploadFile = File(...),
-    category: str = Form(default="Electricals"),
-    x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
-):
-    """Extract products from PDF using Docling"""
-    check_key(x_api_key)
-    
-    try:
-        if category not in ALLOWED_CATEGORIES:
-            raise HTTPException(status_code=400, detail="Invalid category")
-        
-        logger.info(f"📄 Processing PDF for category: {category}")
-        
-        if not pdf_processor:
-            raise HTTPException(status_code=503, detail="PDF processor not available")
-        
-        file_content = await file.read()
-        products = await pdf_processor.process(file_content, category)
-        
-        logger.info(f"✅ Extracted {len(products)} products from PDF")
-        
-        # Add brand voice generation (like other endpoints)
-        if brand_voice and products:
-            try:
-                products = await brand_voice.generate(products, category)
-                logger.info(f"✅ Brand voice generated for {len(products)} products")
-            except Exception as e:
-                logger.warning(f"⚠️ Brand voice failed: {e}")
-        
-        return ProcessingResponse(success=True, products=products)
-            
-    except Exception as e:
-        logger.error(f"PDF error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/export")

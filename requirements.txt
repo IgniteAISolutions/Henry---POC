@@ -3,7 +3,7 @@ fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
-# OpenAI
+# OpenAI for brand voice generation
 openai==1.10.0
 
 # URL scraping
@@ -16,14 +16,6 @@ httpx==0.26.0
 # HTML parsing
 beautifulsoup4==4.12.3
 lxml==5.1.0
-
-# Image processing and OCR
-Pillow==10.2.0
-pytesseract==0.3.10
-
-# NLP - spaCy for entity extraction
-spacy==3.8.0
-# Download model: python -m spacy download en_core_web_sm
 
 # CSV handling with pandas
 pandas==2.1.4
@@ -39,20 +31,8 @@ python-dotenv==1.0.1
 # Logging
 python-json-logger==2.0.7
 
-# CORS
+# CORS (included with starlette via fastapi)
 starlette==0.35.1
 
 # Async support
 anyio==4.2.0
-
-# Testing (optional, for development)
-pytest==7.4.4
-pytest-asyncio==0.23.3
-
-# Development tools (optional)
-black==23.12.1
-flake8==7.0.0
-mypy==1.8.0
-
-# PDF Processing with Docling
-docling @ git+https://github.com/IgniteAISolutions/docling-PDF.git@main
