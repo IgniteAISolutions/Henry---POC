@@ -9,11 +9,22 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Configure logging - show everything during debugging
+# Configure logging - filter out noisy health probe warnings
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Filter out "Invalid HTTP request received" warnings from uvicorn
+class InvalidHTTPFilter(logging.Filter):
+    def filter(self, record):
+        return "Invalid HTTP request received" not in record.getMessage()
+
+# Apply filter to uvicorn loggers
+for logger_name in ['uvicorn.error', 'uvicorn.access', 'uvicorn']:
+    uv_logger = logging.getLogger(logger_name)
+    uv_logger.addFilter(InvalidHTTPFilter())
+
 logger = logging.getLogger(__name__)
 logger.info("🚀 Starting EarthFare API...")
 
@@ -49,7 +60,7 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS Configuration - Allow Vercel frontend
+# CORS Configuration - Allow Vercel frontend and local dev
 # IMPORTANT: No trailing slashes on origins!
 origins = [
     "https://earthfare.vercel.app",
@@ -60,11 +71,16 @@ origins = [
     "http://127.0.0.1:5173",
 ]
 
+# Add any additional origins from environment variable (comma-separated)
+extra_origins = os.getenv("CORS_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+
 # Add CORS middleware - this MUST be before routes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now to debug
-    allow_credentials=False,  # Must be False when using "*"
+    allow_origins=origins,  # Use specific origins for security
+    allow_credentials=True,  # Allow credentials with specific origins
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
