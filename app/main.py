@@ -38,14 +38,14 @@ except ImportError as e:
 
 # Import EarthFare-specific modules
 try:
-    from app.services.product_enricher import enrich_product, enrich_products_batch
+    from app.services.product_enricher import enrich_product, enrich_products
     from app.services.shopify_mapper import map_to_shopify_csv, map_products_to_shopify, SHOPIFY_CSV_HEADERS
     from app.services.dietary_detector import detect_dietary_attributes
     from app.services.nutrition_parser import parse_nutrition_from_html
     logger.info("✅ EarthFare modules imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ EarthFare modules not fully available: {e}")
-    enrich_product = enrich_products_batch = map_to_shopify_csv = None
+    enrich_product = enrich_products = map_to_shopify_csv = None
 
 from app.config import ALLOWED_CATEGORIES
 
@@ -362,12 +362,12 @@ async def enrich_products_endpoint(
     check_key(x_api_key)
 
     try:
-        if not enrich_products_batch:
+        if not enrich_products:
             raise HTTPException(status_code=503, detail="Product enrichment service not available")
 
         logger.info(f"🔍 Enriching {len(request.products)} products")
 
-        enriched = await enrich_products_batch(
+        enriched = await enrich_products(
             request.products,
             scrape=request.scrape_suppliers
         )
@@ -453,9 +453,9 @@ async def process_earthfare_endpoint(
         logger.info(f"📊 Parsed {len(products)} products")
 
         # Step 2: Enrich with supplier data (optional)
-        if enrich and enrich_products_batch:
+        if enrich and enrich_products:
             try:
-                products = await enrich_products_batch(products, scrape=True)
+                products = await enrich_products(products, scrape=True)
                 logger.info(f"🔍 Enriched products with nutritional data")
             except Exception as e:
                 logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
