@@ -47,16 +47,16 @@ RUN mkdir -p /app/frontend/build
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Health check - uses PORT env var via shell
+# Health check - hardcoded to 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-3000}/healthz || exit 1
+    CMD curl -f http://localhost:8080/healthz || exit 1
 
-EXPOSE 3000
+EXPOSE 8080
 
-# Environment defaults - Elestio uses 3000 by default
-ENV PORT=3000 \
+# Environment defaults - HARDCODED to 8080
+ENV PORT=8080 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Use shell form to expand PORT variable
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-3000}
+# HARDCODED port 8080 - do not change
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

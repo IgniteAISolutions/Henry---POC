@@ -5,12 +5,12 @@ config:
   runTime: "docker"
   version: ""
 
-# Build configuration - use port 3000 (Elestio default)
+# Build configuration - HARDCODED to port 8080
 ports:
   - protocol: "HTTPS"
     targetProtocol: "HTTP"
     listeningPort: "443"
-    targetPort: "3000"
+    targetPort: "8080"
     targetIP: "172.17.0.1"
     public: true
     path: "/"
@@ -20,7 +20,7 @@ ports:
 # Environment variables (set values in Elestio dashboard)
 environments:
   - key: "PORT"
-    value: "3000"
+    value: "8080"
   - key: "OPENAI_API_KEY"
     value: ""
   - key: "OPENAI_MODEL"
