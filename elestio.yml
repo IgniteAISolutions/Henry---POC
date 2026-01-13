@@ -7,12 +7,11 @@ config:
 
 # Build configuration
 ports:
- ports:
-    - protocol: "HTTPS"
-      targetProtocol: "HTTP"
-      listeningPort: "443"
-      targetPort: "8080"  # Make sure this stays 8080
-      targetIP: "172.17.0.1"  # Change back to IP, not container name
+  - protocol: "HTTPS"
+    targetProtocol: "HTTP"
+    listeningPort: "443"
+    targetPort: "8080"
+    targetIP: "172.17.0.1"
     public: true
     path: "/"
     is498: false
