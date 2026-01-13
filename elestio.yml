@@ -11,7 +11,7 @@ ports:
     targetProtocol: "HTTP"
     listeningPort: "443"
     targetPort: "8080"
-    targetIP: "172.17.0.1"
+    targetIP: "henry---poc"
     public: true
     path: "/"
     is498: false
