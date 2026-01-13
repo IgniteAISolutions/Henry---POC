@@ -37,8 +37,14 @@ environments:
   - key: "API_KEY"
     value: ""
 
-# Lifecycle scripts
+# Lifecycle scripts - fix port mapping after deployment
 lifeCycleScripts:
   postBuild: ""
-  preRun: ""
-  postRun: ""
+  preRun: |
+    # Ensure docker-compose uses port 8080
+    sed -i 's/3000:3000/8080:8080/g' docker-compose.yml 2>/dev/null || true
+  postRun: |
+    # Fix nginx proxy to use port 8080
+    sleep 5
+    docker exec elestio-nginx sed -i 's/172.17.0.1:3000/172.17.0.1:8080/g' /etc/nginx/conf.d/*.conf 2>/dev/null || true
+    docker exec elestio-nginx nginx -s reload 2>/dev/null || true
