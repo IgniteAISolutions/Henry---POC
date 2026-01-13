@@ -36,8 +36,12 @@ environments:
   - key: "API_KEY"
     value: ""
 
-# Lifecycle scripts
+# Lifecycle scripts - auto-fix port mapping after each deployment
 lifeCycleScripts:
   postBuild: ""
-  preRun: ""
+  preRun: |
+    cd /opt/app/henry---poc
+    sed -i 's/3000:3000/8080:8080/g' docker-compose.yml
+    sed -i 's/172.17.0.1:3000:3000/172.17.0.1:8080:8080/g' docker-compose.yml
+    sed -i 's/172.17.0.1:3000/172.17.0.1:8080/g' docker-compose.yml
   postRun: ""
