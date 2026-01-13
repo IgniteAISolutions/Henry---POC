@@ -20,9 +20,24 @@ type Product = {
     body_html?: string;
   };
   dietary_preferences?: string[];
-  allergens?: string[];
+  dietary_info?: string[];
+  allergens?: {
+    contains?: string[];
+    may_contain?: string[];
+    free_from?: string[];
+  };
   ingredients?: string;
-  nutrition?: any;
+  nutrition?: {
+    energy_kcal?: string;
+    energy_kj?: string;
+    fat?: string;
+    saturates?: string;
+    carbohydrates?: string;
+    sugars?: string;
+    fibre?: string;
+    protein?: string;
+    salt?: string;
+  };
   images?: string[];
   price?: string | null;
 };
@@ -629,12 +644,15 @@ const UniversalUploader: React.FC = () => {
               </div>
             </div>
 
-            {/* Dietary info display */}
-            {product.dietary_preferences && product.dietary_preferences.length > 0 && (
+            {/* Dietary info display - check both dietary_preferences and dietary_info */}
+            {((product.dietary_preferences && product.dietary_preferences.length > 0) ||
+              (product.dietary_info && product.dietary_info.length > 0)) && (
               <div>
                 <label style={{ fontWeight: 600, display: 'block', marginBottom: '4px', color: COLORS.text }}>Dietary:</label>
                 <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {product.dietary_preferences.map((diet, i) => (
+                  {[...(product.dietary_preferences || []), ...(product.dietary_info || [])]
+                    .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
+                    .map((diet, i) => (
                     <span key={i} style={{
                       background: COLORS.secondary,
                       color: COLORS.primaryDark,
@@ -646,6 +664,126 @@ const UniversalUploader: React.FC = () => {
                       {diet}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Ingredients and Nutrition - Two Column Layout */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+              {/* Ingredients */}
+              <div style={{ background: COLORS.background, padding: '1rem', borderRadius: '8px', border: BORDER_THIN }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', color: COLORS.primary, fontSize: '1rem' }}>
+                  🥗 Ingredients
+                </label>
+                {product.ingredients ? (
+                  <p style={{ margin: 0, color: COLORS.text, lineHeight: '1.5', fontSize: '0.9rem' }}>
+                    {product.ingredients}
+                  </p>
+                ) : (
+                  <p style={{ margin: 0, color: COLORS.textLight, fontStyle: 'italic', fontSize: '0.9rem' }}>
+                    No ingredients data available
+                  </p>
+                )}
+              </div>
+
+              {/* Nutrition Table */}
+              <div style={{ background: COLORS.background, padding: '1rem', borderRadius: '8px', border: BORDER_THIN }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', color: COLORS.primary, fontSize: '1rem' }}>
+                  📊 Nutrition (per 100g)
+                </label>
+                {product.nutrition && Object.keys(product.nutrition).length > 0 ? (
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                    <tbody>
+                      {product.nutrition.energy_kcal && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Energy</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.energy_kcal} kcal</td>
+                        </tr>
+                      )}
+                      {product.nutrition.fat && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Fat</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.fat}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.saturates && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', paddingLeft: '12px', color: COLORS.textLight, fontSize: '0.8rem' }}>of which saturates</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontSize: '0.8rem' }}>{product.nutrition.saturates}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.carbohydrates && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Carbohydrates</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.carbohydrates}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.sugars && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', paddingLeft: '12px', color: COLORS.textLight, fontSize: '0.8rem' }}>of which sugars</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontSize: '0.8rem' }}>{product.nutrition.sugars}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.fibre && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Fibre</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.fibre}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.protein && (
+                        <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Protein</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.protein}g</td>
+                        </tr>
+                      )}
+                      {product.nutrition.salt && (
+                        <tr>
+                          <td style={{ padding: '6px 0', color: COLORS.text }}>Salt</td>
+                          <td style={{ padding: '6px 0', textAlign: 'right', fontWeight: 500 }}>{product.nutrition.salt}g</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                ) : (
+                  <p style={{ margin: 0, color: COLORS.textLight, fontStyle: 'italic', fontSize: '0.9rem' }}>
+                    No nutrition data available
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Allergens */}
+            {product.allergens && (
+              <div style={{ background: '#fff8e1', padding: '1rem', borderRadius: '8px', border: `1px solid ${COLORS.warning}` }}>
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', color: '#e65100', fontSize: '1rem' }}>
+                  ⚠️ Allergen Information
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {product.allergens.contains && product.allergens.contains.length > 0 && (
+                    <div>
+                      <strong style={{ color: COLORS.error, fontSize: '0.85rem' }}>Contains: </strong>
+                      <span style={{ fontSize: '0.85rem' }}>{product.allergens.contains.join(', ')}</span>
+                    </div>
+                  )}
+                  {product.allergens.may_contain && product.allergens.may_contain.length > 0 && (
+                    <div>
+                      <strong style={{ color: COLORS.warning, fontSize: '0.85rem' }}>May Contain: </strong>
+                      <span style={{ fontSize: '0.85rem' }}>{product.allergens.may_contain.join(', ')}</span>
+                    </div>
+                  )}
+                  {product.allergens.free_from && product.allergens.free_from.length > 0 && (
+                    <div>
+                      <strong style={{ color: COLORS.success, fontSize: '0.85rem' }}>Free From: </strong>
+                      <span style={{ fontSize: '0.85rem' }}>{product.allergens.free_from.join(', ')}</span>
+                    </div>
+                  )}
+                  {(!product.allergens.contains || product.allergens.contains.length === 0) &&
+                   (!product.allergens.may_contain || product.allergens.may_contain.length === 0) &&
+                   (!product.allergens.free_from || product.allergens.free_from.length === 0) && (
+                    <p style={{ margin: 0, color: COLORS.textLight, fontStyle: 'italic', fontSize: '0.85rem' }}>
+                      No allergen data available
+                    </p>
+                  )}
                 </div>
               </div>
             )}
