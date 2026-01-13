@@ -8,10 +8,10 @@ services:
       dockerfile: Dockerfile
     container_name: henry---poc
     ports:
-      - "8080:8080"
+      - "3000:3000"
     environment:
-      # Core
-      PORT: "${PORT:-8080}"
+      # Core - Elestio uses 3000 by default
+      PORT: "${PORT:-3000}"
       DOCLING_API_KEY: "${DOCLING_API_KEY}"
       API_KEY: "${API_KEY}"
       # OpenAI
