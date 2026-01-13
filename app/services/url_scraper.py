@@ -78,6 +78,11 @@ async def scrape(url: str, category: str) -> List[Dict[str, Any]]:
         "warranty": extract_warranty(soup, full_text),
         "pricing": extract_pricing(soup, full_text),
         "images": extract_images(soup),
+        # Food/grocery specific fields
+        "ingredients": extract_ingredients(soup, full_text),
+        "nutrition": extract_nutrition(soup, full_text),
+        "allergens": extract_allergens(soup, full_text),
+        "dietary_info": extract_dietary_info(soup, full_text),
         "rawExtractedContent": full_text[:5000],
         "_source_url": url,
         "_scrape_method": method_used
@@ -384,3 +389,246 @@ def extract_images(soup: BeautifulSoup) -> List[str]:
     if og_img and og_img.get('content'):
         images.insert(0, og_img['content'])
     return images[:10]
+
+
+# =============================================================================
+# FOOD/GROCERY SPECIFIC EXTRACTION
+# =============================================================================
+
+def extract_ingredients(soup: BeautifulSoup, full_text: str) -> str:
+    """Extract ingredients list from product page"""
+    # Try common selectors first
+    selectors = [
+        '.ingredients', '.product-ingredients', '#ingredients',
+        '[data-ingredients]', '.ingredients-list', '.ingredient-list',
+        'div[class*="ingredient"]', 'p[class*="ingredient"]',
+        # Suma specific
+        'h3:contains("Ingredients") + p', 'h2:contains("Ingredients") + p',
+    ]
+    for selector in selectors:
+        try:
+            elem = soup.select_one(selector)
+            if elem:
+                text = elem.get_text(strip=True)
+                if text and len(text) > 3:
+                    return text
+        except Exception:
+            continue
+
+    # Look for heading followed by content
+    for heading in soup.find_all(['h2', 'h3', 'h4', 'strong', 'b']):
+        heading_text = heading.get_text(strip=True).lower()
+        if 'ingredient' in heading_text:
+            # Get next sibling or parent's next content
+            next_elem = heading.find_next_sibling()
+            if next_elem:
+                text = next_elem.get_text(strip=True)
+                if text and len(text) > 3:
+                    return text
+            # Check parent container
+            parent = heading.parent
+            if parent:
+                text = parent.get_text(strip=True)
+                # Remove the heading text
+                text = text.replace(heading.get_text(strip=True), '').strip()
+                if text and len(text) > 3:
+                    return text
+
+    # Regex fallback - look for "Ingredients:" pattern
+    patterns = [
+        r'Ingredients?[:\s]+([A-Za-z][^\.]{10,500})',
+        r'Contains?[:\s]+([A-Za-z][^\.]{5,200})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, full_text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+
+    return ""
+
+
+def extract_nutrition(soup: BeautifulSoup, full_text: str) -> Dict[str, Any]:
+    """Extract nutritional information table"""
+    nutrition = {}
+
+    # Common nutrition table selectors
+    table_selectors = [
+        '.nutritional-info', '.nutrition-table', '#nutrition',
+        '.nutritional-values', 'table[class*="nutri"]',
+        '.product-nutrition', '.nutrition-facts',
+        # Suma specific
+        'table', '.nutritional-information',
+    ]
+
+    for selector in table_selectors:
+        try:
+            tables = soup.select(selector)
+            for table in tables:
+                rows = table.select('tr')
+                for row in rows:
+                    cells = row.select('td, th')
+                    if len(cells) >= 2:
+                        key = cells[0].get_text(strip=True).lower()
+                        value = cells[1].get_text(strip=True)
+
+                        # Map common nutrition fields
+                        if 'energy' in key and 'kcal' in key.lower():
+                            nutrition['energy_kcal'] = value
+                        elif 'energy' in key and 'kj' in key.lower():
+                            nutrition['energy_kj'] = value
+                        elif 'energy' in key:
+                            nutrition['energy_kcal'] = value
+                        elif 'fat' in key and 'saturate' not in key:
+                            nutrition['fat'] = value
+                        elif 'saturate' in key:
+                            nutrition['saturates'] = value
+                        elif 'carbohydrate' in key and 'sugar' not in key:
+                            nutrition['carbohydrates'] = value
+                        elif 'sugar' in key:
+                            nutrition['sugars'] = value
+                        elif 'fibre' in key or 'fiber' in key:
+                            nutrition['fibre'] = value
+                        elif 'protein' in key:
+                            nutrition['protein'] = value
+                        elif 'salt' in key:
+                            nutrition['salt'] = value
+
+                if nutrition:
+                    return nutrition
+        except Exception:
+            continue
+
+    # Regex fallback for text-based nutrition info
+    nutrition_patterns = {
+        'energy_kcal': r'Energy[:\s]+(\d+\.?\d*)\s*(?:kcal|Kcal)',
+        'fat': r'Fat[:\s]+(\d+\.?\d*)\s*g',
+        'saturates': r'Saturates?[:\s]+(\d+\.?\d*)\s*g',
+        'carbohydrates': r'Carbohydrates?[:\s]+(\d+\.?\d*)\s*g',
+        'sugars': r'Sugars?[:\s]+(\d+\.?\d*)\s*g',
+        'fibre': r'Fibre[:\s]+(\d+\.?\d*)\s*g',
+        'protein': r'Protein[:\s]+(\d+\.?\d*)\s*g',
+        'salt': r'Salt[:\s]+(\d+\.?\d*)\s*g',
+    }
+
+    for key, pattern in nutrition_patterns.items():
+        match = re.search(pattern, full_text, re.IGNORECASE)
+        if match:
+            nutrition[key] = match.group(1)
+
+    return nutrition
+
+
+def extract_allergens(soup: BeautifulSoup, full_text: str) -> Dict[str, Any]:
+    """Extract allergen and cross-contamination information"""
+    allergens = {
+        'contains': [],
+        'may_contain': [],
+        'free_from': []
+    }
+
+    # Common allergen selectors
+    selectors = [
+        '.allergen-info', '.allergens', '.allergy-info',
+        '.allergy-warning', '[class*="allergen"]',
+        '.cross-contamination', '.may-contain',
+    ]
+
+    allergen_keywords = [
+        'wheat', 'gluten', 'milk', 'dairy', 'eggs', 'egg', 'nuts', 'peanuts',
+        'soya', 'soy', 'sesame', 'fish', 'shellfish', 'crustaceans',
+        'celery', 'mustard', 'lupin', 'molluscs', 'sulphur dioxide', 'sulphites'
+    ]
+
+    for selector in selectors:
+        try:
+            elems = soup.select(selector)
+            for elem in elems:
+                text = elem.get_text(strip=True).lower()
+                for allergen in allergen_keywords:
+                    if allergen in text:
+                        if 'may contain' in text or 'cross contamination' in text or 'may have come in contact' in text:
+                            if allergen.title() not in allergens['may_contain']:
+                                allergens['may_contain'].append(allergen.title())
+                        elif 'free from' in text or 'does not contain' in text:
+                            if allergen.title() not in allergens['free_from']:
+                                allergens['free_from'].append(allergen.title())
+                        else:
+                            if allergen.title() not in allergens['contains']:
+                                allergens['contains'].append(allergen.title())
+        except Exception:
+            continue
+
+    # Regex patterns for allergen statements
+    may_contain_pattern = r'(?:may contain|cross.?contamination|may have come in contact)[:\s]+([^\.]+)'
+    contains_pattern = r'(?:contains|allergens?)[:\s]+([^\.]+)'
+
+    may_match = re.search(may_contain_pattern, full_text, re.IGNORECASE)
+    if may_match:
+        text = may_match.group(1).lower()
+        for allergen in allergen_keywords:
+            if allergen in text and allergen.title() not in allergens['may_contain']:
+                allergens['may_contain'].append(allergen.title())
+
+    contains_match = re.search(contains_pattern, full_text, re.IGNORECASE)
+    if contains_match:
+        text = contains_match.group(1).lower()
+        for allergen in allergen_keywords:
+            if allergen in text and allergen.title() not in allergens['contains']:
+                allergens['contains'].append(allergen.title())
+
+    return allergens
+
+
+def extract_dietary_info(soup: BeautifulSoup, full_text: str) -> List[str]:
+    """Extract dietary attributes (vegan, organic, gluten-free, etc.)"""
+    dietary_info = []
+
+    dietary_keywords = {
+        'vegan': ['vegan', 'plant-based', 'plant based'],
+        'vegetarian': ['vegetarian', 'veggie'],
+        'organic': ['organic', 'certified organic'],
+        'gluten-free': ['gluten free', 'gluten-free', 'no gluten'],
+        'dairy-free': ['dairy free', 'dairy-free', 'no dairy'],
+        'nut-free': ['nut free', 'nut-free', 'no nuts'],
+        'fairtrade': ['fairtrade', 'fair trade'],
+        'kosher': ['kosher'],
+        'halal': ['halal'],
+        'raw': ['raw food', 'raw '],
+        'sugar-free': ['sugar free', 'sugar-free', 'no added sugar'],
+        'low-salt': ['low salt', 'reduced salt'],
+        'high-fibre': ['high fibre', 'high fiber', 'rich in fibre'],
+    }
+
+    text_lower = full_text.lower()
+
+    # Check for badge/tag elements
+    badge_selectors = [
+        '.dietary-badge', '.product-badge', '.tag', '.label',
+        '[class*="badge"]', '[class*="tag"]', 'img[alt*="vegan"]',
+        'img[alt*="organic"]', '.dietary-groups', '.product-ethics',
+    ]
+
+    for selector in badge_selectors:
+        try:
+            elems = soup.select(selector)
+            for elem in elems:
+                elem_text = elem.get_text(strip=True).lower()
+                alt_text = elem.get('alt', '').lower() if elem.name == 'img' else ''
+                combined = elem_text + ' ' + alt_text
+
+                for diet_key, keywords in dietary_keywords.items():
+                    for keyword in keywords:
+                        if keyword in combined and diet_key not in dietary_info:
+                            dietary_info.append(diet_key)
+        except Exception:
+            continue
+
+    # Check full text for dietary keywords
+    for diet_key, keywords in dietary_keywords.items():
+        if diet_key not in dietary_info:
+            for keyword in keywords:
+                if keyword in text_lower:
+                    dietary_info.append(diet_key)
+                    break
+
+    return dietary_info

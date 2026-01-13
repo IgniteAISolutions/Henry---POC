@@ -253,21 +253,31 @@ async def scrape_url_endpoint(
     request: URLScraperRequest,
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
-    """Scrape URL for product data"""
+    """Scrape URL for product data including ingredients, nutrition, and allergens"""
     check_key(x_api_key)
-    
+
     try:
         if request.category not in ALLOWED_CATEGORIES:
             raise HTTPException(status_code=400, detail="Invalid category")
-        
+
         if not url_scraper:
             raise HTTPException(status_code=503, detail="URL scraper not available")
-        
+
+        # Initial scrape for basic product data
         products = await url_scraper.scrape(request.url, request.category)
-        
+
+        # Enrich with ingredients, nutrition, allergens from the scraped content
+        if enrich_products and products:
+            logger.info(f"Enriching {len(products)} products from URL scrape...")
+            try:
+                products = await enrich_products(products, scrape=False)
+            except Exception as enrich_err:
+                logger.warning(f"Enrichment failed, continuing with basic data: {enrich_err}")
+
+        # Generate brand voice descriptions
         if brand_voice:
             products = await brand_voice.generate(products, request.category)
-        
+
         return ProcessingResponse(success=True, products=products)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
