@@ -50,11 +50,11 @@ except ImportError:
 
 # Import existing scraper (fallback)
 try:
-    from .url_scraper import scrape_url
+    from .url_scraper import scrape as scrape_url
     HAS_URL_SCRAPER = True
-except ImportError:
+except ImportError as e:
     HAS_URL_SCRAPER = False
-    logger.warning("url_scraper not available - limited scraping capability")
+    logger.warning(f"url_scraper not available - limited scraping capability: {e}")
 
 
 async def enrich_product(product: Dict[str, Any]) -> Dict[str, Any]:
