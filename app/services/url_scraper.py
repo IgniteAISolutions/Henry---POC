@@ -52,7 +52,7 @@ async def scrape(url: str, category: str) -> List[Dict[str, Any]]:
             logger.warning(f"Playwright failed: {e}")
     
     if not html:
-        raise ValueError("This website could not be scraped. Please copy the product details and use the Free Text tab.")
+        raise ValueError("This website could not be scraped. Please try a different URL or use CSV upload instead.")
     
     # Parse and extract
     soup = BeautifulSoup(html, 'html.parser')
