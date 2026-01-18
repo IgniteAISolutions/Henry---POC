@@ -310,6 +310,12 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     if allergens:
         product["allergens"] = parse_list_field(allergens)
 
+    # Extract Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+    # This must be called after dietary extraction since it uses dietary info
+    icons = extract_icons_from_csv(row, product)
+    if icons:
+        product["icons"] = icons
+
     # Parse features
     features_str = extract_csv_field(row, ['features', 'Features', 'key_features'])
     if features_str:
@@ -427,6 +433,98 @@ def is_no_value(value: str) -> bool:
         return False
     v = str(value).strip().lower()
     return v in ['no', 'false', '0', 'n', '-']
+
+
+def extract_icons_from_csv(row: Dict[str, str], product: Dict[str, Any]) -> List[str]:
+    """
+    Extract Earthfare icon metafield values from CSV row and product data.
+
+    The 4 Earthfare icons are:
+    - Palm Oil Free
+    - Organic
+    - Vegan
+    - Fairtrade
+
+    Detection sources:
+    - CSV columns (e.g., 'Palm Oil Free', 'Fairtrade')
+    - Dietary preferences already extracted
+    - Text content (description, romance copy, ingredients)
+
+    Args:
+        row: CSV row as dictionary
+        product: Product dict with already extracted fields
+    Returns:
+        List of icon names that apply to this product
+    """
+    icons = []
+
+    # Get text fields for scanning
+    text_fields = []
+    for field in ['romance_copy', 'ingredients']:
+        if product.get(field):
+            text_fields.append(str(product[field]).lower())
+
+    # Also check original row description fields
+    for key in ['Description', 'description', 'Romance Copy', 'romance_copy', 'Long Description']:
+        if row.get(key):
+            text_fields.append(str(row[key]).lower())
+
+    combined_text = ' '.join(text_fields)
+
+    # 1. PALM OIL FREE
+    # Check CSV column
+    palm_oil_cols = ['Palm Oil Free', 'palm_oil_free', 'Palm-Oil-Free', 'PalmOilFree']
+    for col in palm_oil_cols:
+        if row.get(col) and is_yes_value(row.get(col, '')):
+            if 'Palm Oil Free' not in icons:
+                icons.append('Palm Oil Free')
+            break
+    # Check text content
+    if 'Palm Oil Free' not in icons:
+        if 'palm oil free' in combined_text or 'palm-oil-free' in combined_text:
+            icons.append('Palm Oil Free')
+
+    # 2. ORGANIC
+    # Check if already in dietary preferences
+    dietary = product.get('dietary', []) or product.get('dietary_preferences', [])
+    if 'Organic' in dietary:
+        icons.append('Organic')
+    # Also check CSV columns and text
+    elif row.get('Organic') and is_yes_value(row.get('Organic', '')):
+        icons.append('Organic')
+    elif 'organic' in combined_text and 'Organic' not in icons:
+        # Be more specific - look for "organic" as certification, not just ingredient
+        import re
+        if re.search(r'\borganic\b', combined_text):
+            icons.append('Organic')
+
+    # 3. VEGAN
+    # Check if already in dietary preferences
+    if 'Vegan' in dietary:
+        icons.append('Vegan')
+    # Also check CSV columns
+    elif row.get('Vegan') and is_yes_value(row.get('Vegan', '')):
+        icons.append('Vegan')
+    elif 'vegan' in combined_text and 'Vegan' not in icons:
+        import re
+        if re.search(r'\bvegan\b', combined_text):
+            icons.append('Vegan')
+
+    # 4. FAIRTRADE
+    # Check CSV columns
+    fairtrade_cols = ['Fairtrade', 'fairtrade', 'Fair Trade', 'fair_trade', 'FairTrade']
+    for col in fairtrade_cols:
+        if row.get(col) and is_yes_value(row.get(col, '')):
+            if 'Fairtrade' not in icons:
+                icons.append('Fairtrade')
+            break
+    # Check text content for fairtrade or rainforest alliance
+    if 'Fairtrade' not in icons:
+        import re
+        if re.search(r'\b(fairtrade|fair[\s-]?trade|rainforest\s*alliance)\b', combined_text):
+            icons.append('Fairtrade')
+
+    return icons
 
 
 def extract_csv_field(row: Dict[str, str], keys: List[str]) -> str:

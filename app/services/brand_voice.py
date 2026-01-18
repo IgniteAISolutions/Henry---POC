@@ -101,8 +101,17 @@ Return ONLY valid JSON:
   "short_description": "[Benefit 1]<br>[Benefit 2]<br>[Benefit 3]",
   "meta_description": "[150-160 chars, extracted from first sentence]",
   "dietary_preferences": ["Gluten Free", "Vegan", ...],
+  "icons": ["Palm Oil Free", "Organic", "Vegan", "Fairtrade"],
   "brand": "Brand Name"
 }
+
+## EARTHFARE ICONS
+
+Only include icons if explicitly mentioned in product data or clearly stated in description:
+- "Palm Oil Free" - product explicitly states palm oil free
+- "Organic" - product has organic certification
+- "Vegan" - product is certified vegan
+- "Fairtrade" - product has Fairtrade or Rainforest Alliance certification
 
 ## CATEGORY MATRIX
 
@@ -224,6 +233,15 @@ async def generate_single_product(product: Dict[str, Any], category: str) -> Dic
             # Sanitize output
             descriptions = sanitize_descriptions(descriptions, product.get("name", ""))
 
+            # Merge icons: prefer original product icons (from CSV), then add any from GPT
+            original_icons = product.get("icons", [])
+            gpt_icons = descriptions.get("icons", [])
+            merged_icons = list(original_icons)
+            for icon in gpt_icons:
+                if icon not in merged_icons:
+                    merged_icons.append(icon)
+            descriptions["icons"] = merged_icons
+
             # Update product
             product["descriptions"] = descriptions
             logger.info(f"Successfully generated descriptions for {product.get('name')}")
@@ -334,6 +352,10 @@ def build_prompt(product: Dict[str, Any], category: str) -> str:
     if product.get("allergens"):
         prompt_data["allergens"] = product["allergens"]
 
+    # Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+    if product.get("icons"):
+        prompt_data["icons"] = product["icons"]
+
     # Build prompt
     return f"Product data:\n{json.dumps(prompt_data, indent=2)}"
 
@@ -372,6 +394,7 @@ def parse_openai_response(content: str) -> Dict[str, Any]:
         short_description = data.get("short_description", "")
         meta_description = data.get("meta_description", "")
         dietary_preferences = data.get("dietary_preferences", [])
+        icons = data.get("icons", [])
         brand = data.get("brand", "")
 
         if not body_html:
@@ -387,6 +410,7 @@ def parse_openai_response(content: str) -> Dict[str, Any]:
             "short_description": short_description,
             "meta_description": meta_description,
             "dietary_preferences": dietary_preferences,
+            "icons": icons,
             "brand": brand,
             # Legacy format compatibility
             "shortDescription": f"<p>{short_description}</p>" if short_description else "",

@@ -265,6 +265,10 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
         allergens = product.get('allergens', [])
         allergens_str = ', '.join(allergens) if isinstance(allergens, list) else str(allergens) if allergens else ''
 
+        # Get Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+        icons = descriptions.get('icons', []) or product.get('icons', [])
+        icons_str = ', '.join(icons) if isinstance(icons, list) else str(icons) if icons else ''
+
         row = {
             'SKU': product.get('sku', ''),
             'Barcode': product.get('barcode', ''),
@@ -276,6 +280,7 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'Long Description': long_desc,
             'Meta Description': meta_desc,
             'Dietary Preferences': dietary_str,
+            'Icons': icons_str,
             'Ingredients': ingredients,
             'Allergens': allergens_str,
             'Features': '\n'.join(features) if features else '',
@@ -320,9 +325,10 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'H': 70,   # Long Description
             'I': 50,   # Meta Description
             'J': 30,   # Dietary Preferences
-            'K': 60,   # Ingredients
-            'L': 30,   # Allergens
-            'M': 40,   # Features
+            'K': 35,   # Icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+            'L': 60,   # Ingredients
+            'M': 30,   # Allergens
+            'N': 40,   # Features
         }
         
         # Apply column widths
