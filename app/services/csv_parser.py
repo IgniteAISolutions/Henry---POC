@@ -326,6 +326,12 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     if benefits_str:
         product["benefits"] = parse_list_field(benefits_str)
 
+    # Extract nutrition data from CSV columns (per 100g)
+    nutrition = extract_nutrition_from_csv(row)
+    if nutrition:
+        product["nutrition"] = nutrition
+        product["nutrition_source"] = "csv"
+
     return product
 
 
@@ -433,6 +439,148 @@ def is_no_value(value: str) -> bool:
         return False
     v = str(value).strip().lower()
     return v in ['no', 'false', '0', 'n', '-']
+
+
+def extract_nutrition_from_csv(row: Dict[str, str]) -> Dict[str, str]:
+    """
+    Extract nutrition data from CSV columns (per 100g values)
+
+    Supports various column naming conventions for nutrition facts.
+
+    Args:
+        row: CSV row as dictionary
+
+    Returns:
+        Dict with nutrition values, e.g.:
+        {
+            "energy_kcal": "250",
+            "energy_kj": "1046",
+            "fat": "12.5",
+            "saturates": "7.2",
+            "carbohydrates": "28.0",
+            "sugars": "18.5",
+            "fibre": "2.1",
+            "protein": "5.8",
+            "salt": "0.3"
+        }
+    """
+    nutrition = {}
+
+    # Map of nutrition field to possible CSV column names
+    nutrition_columns = {
+        # Energy
+        "energy_kcal": [
+            "Energy (kcal)", "Energy kcal", "Energy(kcal)", "Kcal", "kcal",
+            "Calories", "calories", "Cal", "Energy per 100g (kcal)",
+            "energy_kcal", "energyKcal"
+        ],
+        "energy_kj": [
+            "Energy (kJ)", "Energy kJ", "Energy(kJ)", "kJ", "KJ",
+            "Energy per 100g (kJ)", "energy_kj", "energyKj"
+        ],
+
+        # Fat
+        "fat": [
+            "Fat", "fat", "Fat (g)", "Fat(g)", "Total Fat",
+            "Fat per 100g", "fat_g"
+        ],
+        "saturates": [
+            "Saturates", "saturates", "Saturated Fat", "Saturated fat",
+            "of which saturates", "Sat Fat", "saturated_fat",
+            "Saturates (g)", "Saturated Fat (g)"
+        ],
+        "monounsaturates": [
+            "Mono-unsaturates", "Monounsaturates", "Monounsaturated Fat",
+            "of which mono-unsaturates", "monounsaturated_fat"
+        ],
+        "polyunsaturates": [
+            "Polyunsaturates", "Polyunsaturated Fat",
+            "of which polyunsaturates", "polyunsaturated_fat"
+        ],
+
+        # Carbohydrates
+        "carbohydrates": [
+            "Carbohydrate", "Carbohydrates", "carbohydrates", "Carbs",
+            "Carbohydrate (g)", "Carbohydrates (g)", "Total Carbohydrate",
+            "carbohydrate_g"
+        ],
+        "sugars": [
+            "Sugars", "sugars", "Sugar", "of which sugars",
+            "Sugars (g)", "Sugar (g)", "Total Sugars", "sugars_g"
+        ],
+        "polyols": [
+            "Polyols", "polyols", "of which polyols", "Sugar Alcohols"
+        ],
+        "starch": [
+            "Starch", "starch", "of which starch"
+        ],
+
+        # Fibre
+        "fibre": [
+            "Fibre", "fibre", "Fiber", "fiber", "Dietary Fibre",
+            "Fibre (g)", "Fiber (g)", "fibre_g"
+        ],
+
+        # Protein
+        "protein": [
+            "Protein", "protein", "Protein (g)", "protein_g"
+        ],
+
+        # Salt/Sodium
+        "salt": [
+            "Salt", "salt", "Salt (g)", "salt_g", "Sodium", "sodium"
+        ],
+    }
+
+    for nutrition_key, column_names in nutrition_columns.items():
+        for col_name in column_names:
+            if col_name in row and row[col_name]:
+                value = row[col_name].strip()
+                # Skip empty or placeholder values
+                if value and value.lower() not in ['n/a', 'none', '-', '']:
+                    # Clean the value - remove units if present
+                    clean_value = clean_nutrition_value(value)
+                    if clean_value:
+                        nutrition[nutrition_key] = clean_value
+                        break  # Found a value, move to next field
+
+    return nutrition if nutrition else {}
+
+
+def clean_nutrition_value(value: str) -> str:
+    """
+    Clean nutrition value string - extract numeric value
+
+    Args:
+        value: Raw value like "12.5g", "250 kcal", "<0.1"
+
+    Returns:
+        Clean numeric string like "12.5", "250", "<0.1"
+    """
+    if not value:
+        return ""
+
+    import re
+
+    value = str(value).strip()
+
+    # Handle "less than" values
+    if value.startswith("<") or value.startswith("less than"):
+        # Extract the number after <
+        match = re.search(r'[<]?\s*(\d+\.?\d*)', value)
+        if match:
+            return f"<{match.group(1)}"
+
+    # Handle "trace" amounts
+    if value.lower() in ['trace', 'tr', 'traces']:
+        return "<0.1"
+
+    # Extract numeric value (handles "12.5g", "250 kcal", etc.)
+    match = re.search(r'(\d+\.?\d*)', value)
+    if match:
+        return match.group(1)
+
+    return ""
 
 
 def extract_icons_from_csv(row: Dict[str, str], product: Dict[str, Any]) -> List[str]:

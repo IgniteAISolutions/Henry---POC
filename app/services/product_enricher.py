@@ -4,7 +4,8 @@ Enriches product data by scraping supplier websites for ingredients,
 nutrition, and dietary information.
 
 Integrates:
-- FireCrawl API for intelligent scraping (primary)
+- OpenFoodFacts API for nutrition (primary for barcode lookup)
+- FireCrawl API for intelligent scraping
 - Supplier-specific scraping (fallback)
 - Nutrition parsing
 - Dietary attribute detection from ingredients
@@ -33,6 +34,18 @@ from .dietary_detector import (
     parse_allergen_statement
 )
 
+# Import OpenFoodFacts service for nutrition lookup
+try:
+    from .openfoodfacts_service import (
+        fetch_nutrition_by_barcode,
+        format_off_nutrition_for_shopify
+    )
+    HAS_OPENFOODFACTS = True
+except ImportError:
+    HAS_OPENFOODFACTS = False
+    logger = logging.getLogger(__name__)
+    logger.warning("OpenFoodFacts service not available")
+
 logger = logging.getLogger(__name__)
 
 # Import FireCrawl service (primary scraper)
@@ -57,12 +70,18 @@ except ImportError as e:
     logger.warning(f"url_scraper not available - limited scraping capability: {e}")
 
 
-async def enrich_product(product: Dict[str, Any]) -> Dict[str, Any]:
+async def enrich_product(product: Dict[str, Any], scrape: bool = True) -> Dict[str, Any]:
     """
-    Enrich a single product with scraped data from suppliers
+    Enrich a single product with nutrition and dietary data
+
+    Data sources (in priority order):
+    1. CSV data (already in product dict)
+    2. OpenFoodFacts API (barcode lookup)
+    3. Supplier website scraping (fallback)
 
     Args:
         product: Product dict with at least name, and optionally ean/barcode/brand
+        scrape: Whether to scrape supplier websites (default True)
 
     Returns:
         Enriched product dict with ingredients, nutrition, dietary info
@@ -73,13 +92,46 @@ async def enrich_product(product: Dict[str, Any]) -> Dict[str, Any]:
 
     logger.info(f"Enriching product: {name} (EAN: {ean})")
 
-    # Scrape from multiple sources
-    scraped_data = await scrape_product_data(ean, name, brand)
+    # Track nutrition source for transparency
+    nutrition_source = product.get("nutrition_source", "")
+    nutrition = product.get("nutrition", {})
 
-    # Parse nutrition from scraped HTML
-    nutrition = {}
-    if scraped_data.get("nutrition_html"):
-        nutrition = parse_nutrition_from_html(scraped_data["nutrition_html"])
+    # Priority 1: Use nutrition from CSV if already present
+    if nutrition and nutrition_source == "csv":
+        logger.info(f"Using nutrition data from CSV for {name}")
+
+    # Priority 2: Try OpenFoodFacts if we have a barcode and no nutrition yet
+    elif not nutrition and ean and HAS_OPENFOODFACTS:
+        logger.info(f"Fetching nutrition from OpenFoodFacts for barcode {ean}")
+        try:
+            off_data = await fetch_nutrition_by_barcode(ean)
+            if off_data:
+                nutrition = off_data
+                nutrition_source = "openfoodfacts"
+                logger.info(f"Got nutrition from OpenFoodFacts for {name}")
+
+                # Also get ingredients and allergens from OFF if available
+                if off_data.get("ingredients_from_off") and not product.get("ingredients"):
+                    product["ingredients"] = off_data["ingredients_from_off"]
+                    product["ingredients_source"] = "openfoodfacts"
+
+                if off_data.get("allergens_from_off") and not product.get("allergens"):
+                    product["allergens"] = off_data["allergens_from_off"]
+            else:
+                logger.info(f"No OpenFoodFacts data found for barcode {ean}")
+        except Exception as e:
+            logger.warning(f"OpenFoodFacts lookup failed for {ean}: {e}")
+
+    # Priority 3: Scrape from supplier websites (fallback)
+    scraped_data = {}
+    if scrape:
+        scraped_data = await scrape_product_data(ean, name, brand)
+
+        # Parse nutrition from scraped HTML if we still don't have it
+        if not nutrition and scraped_data.get("nutrition_html"):
+            nutrition = parse_nutrition_from_html(scraped_data["nutrition_html"])
+            nutrition_source = "scraped"
+            logger.info(f"Got nutrition from web scraping for {name}")
 
     # Get ingredients
     ingredients_text = scraped_data.get("ingredients", "") or product.get("ingredients", "")
@@ -105,13 +157,20 @@ async def enrich_product(product: Dict[str, Any]) -> Dict[str, Any]:
             if a not in allergens:
                 allergens.append(a)
 
+    # Format nutrition for Shopify
+    if nutrition_source == "openfoodfacts":
+        nutrition_shopify = format_off_nutrition_for_shopify(nutrition) if HAS_OPENFOODFACTS else []
+    else:
+        nutrition_shopify = format_nutrition_for_shopify(nutrition)
+
     # Merge with original product
     enriched = {
         **product,
         "ingredients": ingredients_text,
         "ingredients_list": ingredients_list,
         "nutrition": nutrition,
-        "nutrition_shopify": format_nutrition_for_shopify(nutrition),
+        "nutrition_shopify": nutrition_shopify,
+        "nutrition_source": nutrition_source,
         "dietary": dietary,
         "dietary_preferences": dietary,  # Alias for Shopify export
         "allergens": allergens,
@@ -120,17 +179,18 @@ async def enrich_product(product: Dict[str, Any]) -> Dict[str, Any]:
         "_scrape_sources": scraped_data.get("_sources", [])
     }
 
-    logger.info(f"Enriched {name}: {len(dietary)} dietary tags, {len(allergens)} allergens")
+    logger.info(f"Enriched {name}: nutrition from {nutrition_source or 'none'}, {len(dietary)} dietary tags, {len(allergens)} allergens")
 
     return enriched
 
 
-async def enrich_products(products: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+async def enrich_products(products: List[Dict[str, Any]], scrape: bool = True) -> List[Dict[str, Any]]:
     """
-    Enrich multiple products
+    Enrich multiple products with nutrition and dietary data
 
     Args:
         products: List of product dicts
+        scrape: Whether to scrape supplier websites (default True)
 
     Returns:
         List of enriched product dicts
@@ -139,15 +199,15 @@ async def enrich_products(products: List[Dict[str, Any]]) -> List[Dict[str, Any]
     for i, product in enumerate(products):
         logger.info(f"Processing product {i+1}/{len(products)}")
         try:
-            enriched_product = await enrich_product(product)
+            enriched_product = await enrich_product(product, scrape=scrape)
             enriched.append(enriched_product)
         except Exception as e:
             logger.error(f"Failed to enrich product {product.get('name', 'unknown')}: {e}")
             product["_enrichment_error"] = str(e)
             enriched.append(product)
 
-        # Small delay between requests to be respectful
-        await asyncio.sleep(0.5)
+        # Small delay between requests to be respectful (rate limiting)
+        await asyncio.sleep(0.6)
 
     return enriched
 
