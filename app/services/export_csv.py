@@ -269,6 +269,34 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
         icons = descriptions.get('icons', []) or product.get('icons', [])
         icons_str = ', '.join(icons) if isinstance(icons, list) else str(icons) if icons else ''
 
+        # Get nutrition data (per 100g)
+        nutrition = product.get('nutrition', {})
+        nutrition_shopify = product.get('nutrition_shopify', [])
+        nutrition_source = product.get('nutrition_source', '')
+
+        # Format nutrition for display
+        if nutrition_shopify and isinstance(nutrition_shopify, list):
+            nutrition_str = '\n'.join(nutrition_shopify)
+        elif nutrition and isinstance(nutrition, dict):
+            # Format from dict
+            nutrition_lines = []
+            nutrition_order = [
+                ('energy_kcal', 'Energy', 'kcal'),
+                ('fat', 'Fat', 'g'),
+                ('saturates', 'Saturates', 'g'),
+                ('carbohydrates', 'Carbohydrates', 'g'),
+                ('sugars', 'Sugars', 'g'),
+                ('fibre', 'Fibre', 'g'),
+                ('protein', 'Protein', 'g'),
+                ('salt', 'Salt', 'g'),
+            ]
+            for key, label, unit in nutrition_order:
+                if key in nutrition and nutrition[key]:
+                    nutrition_lines.append(f"{label}: {nutrition[key]}{unit}")
+            nutrition_str = '\n'.join(nutrition_lines)
+        else:
+            nutrition_str = ''
+
         row = {
             'SKU': product.get('sku', ''),
             'Barcode': product.get('barcode', ''),
@@ -283,6 +311,8 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'Icons': icons_str,
             'Ingredients': ingredients,
             'Allergens': allergens_str,
+            'Nutrition (per 100g)': nutrition_str,
+            'Nutrition Source': nutrition_source,
             'Features': '\n'.join(features) if features else '',
         }
 
@@ -328,7 +358,9 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'K': 35,   # Icons (Palm Oil Free, Organic, Vegan, Fairtrade)
             'L': 60,   # Ingredients
             'M': 30,   # Allergens
-            'N': 40,   # Features
+            'N': 40,   # Nutrition (per 100g)
+            'O': 18,   # Nutrition Source
+            'P': 40,   # Features
         }
         
         # Apply column widths
