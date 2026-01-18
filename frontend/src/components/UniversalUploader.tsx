@@ -107,8 +107,6 @@ const INPUT_BASE = {
 
 const toMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-const stripHtml = (html: string) => (html || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
-
 function normaliseExtractResponse(json: any): any[] {
   if (!json) return [];
   if (Array.isArray(json?.products)) return json.products;
