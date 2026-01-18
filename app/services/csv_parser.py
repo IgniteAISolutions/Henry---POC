@@ -236,6 +236,7 @@ async def process(file_content: bytes, category: str) -> List[Dict[str, Any]]:
 def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     """
     Parse a single CSV row into product dictionary
+    Extracts all available data including dietary flags, ingredients, and romance copy
     """
     # Get product name - prioritize Description (most likely to have real name)
     name = (
@@ -251,11 +252,13 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
         row.get('Short Description') or
         row.get('short_description')
     )
-    
+
     # Get SKU from Code field (separate from name lookup)
     sku = (
         row.get('Code') or
         row.get('code') or
+        row.get('Cat No') or
+        row.get('cat_no') or
         row.get('SKU') or
         row.get('sku') or
         row.get('product_code') or
@@ -286,6 +289,33 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
         "audience": extract_csv_field(row, ['audience', 'Audience', 'target', 'for']),
     }
 
+    # Extract ingredients from CSV
+    ingredients = extract_csv_field(row, ['Ingredients', 'ingredients', 'Ingredient', 'ingredient', 'contents', 'composition'])
+    if ingredients:
+        product["ingredients"] = ingredients
+
+    # Extract Romance Copy as the detailed product description
+    romance_copy = extract_csv_field(row, ['Romance Copy', 'romance_copy', 'Romance', 'romance', 'Long Description', 'long_description', 'detailed_description'])
+    if romance_copy:
+        product["romance_copy"] = romance_copy
+
+    # Extract dietary preferences from boolean flags in CSV
+    dietary = extract_dietary_from_csv(row)
+    if dietary:
+        product["dietary"] = dietary
+        product["dietary_preferences"] = dietary  # Alias for Shopify export
+
+    # Extract allergens if present
+    allergens = extract_csv_field(row, ['Allergens', 'allergens', 'allergy_info', 'contains'])
+    if allergens:
+        product["allergens"] = parse_list_field(allergens)
+
+    # Extract Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+    # This must be called after dietary extraction since it uses dietary info
+    icons = extract_icons_from_csv(row, product)
+    if icons:
+        product["icons"] = icons
+
     # Parse features
     features_str = extract_csv_field(row, ['features', 'Features', 'key_features'])
     if features_str:
@@ -297,6 +327,204 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
         product["benefits"] = parse_list_field(benefits_str)
 
     return product
+
+
+def extract_dietary_from_csv(row: Dict[str, str]) -> List[str]:
+    """
+    Extract dietary preferences from Yes/No columns in CSV
+
+    Handles columns like: Organic, Gluten Free, Vegan, Dairy, Dairy Free,
+    Sugar Free, Nut Free, Seed Oil Free, Vegetarian, etc.
+
+    Args:
+        row: CSV row as dictionary
+    Returns:
+        List of dietary preference strings
+    """
+    dietary = []
+
+    # Map of CSV column names to standardized dietary labels
+    dietary_columns = {
+        # Organic
+        'Organic': 'Organic',
+        'organic': 'Organic',
+        'Is Organic': 'Organic',
+        'is_organic': 'Organic',
+
+        # Gluten Free
+        'Gluten Free': 'Gluten Free',
+        'gluten_free': 'Gluten Free',
+        'Gluten-Free': 'Gluten Free',
+        'GlutenFree': 'Gluten Free',
+
+        # Vegan
+        'Vegan': 'Vegan',
+        'vegan': 'Vegan',
+        'Is Vegan': 'Vegan',
+        'is_vegan': 'Vegan',
+
+        # Vegetarian
+        'Vegetarian': 'Vegetarian',
+        'vegetarian': 'Vegetarian',
+        'Is Vegetarian': 'Vegetarian',
+
+        # Dairy Free
+        'Dairy Free': 'Dairy Free',
+        'dairy_free': 'Dairy Free',
+        'Dairy-Free': 'Dairy Free',
+        'DairyFree': 'Dairy Free',
+
+        # Nut Free
+        'Nut Free': 'Nut Free',
+        'nut_free': 'Nut Free',
+        'Nut-Free': 'Nut Free',
+        'NutFree': 'Nut Free',
+
+        # Sugar Free
+        'Sugar Free': 'Sugar Free',
+        'sugar_free': 'Sugar Free',
+        'Sugar-Free': 'Sugar Free',
+        'SugarFree': 'Sugar Free',
+
+        # Seed Oil Free
+        'Seed Oil Free': 'Seed Oil Free',
+        'seed_oil_free': 'Seed Oil Free',
+
+        # Raw
+        'Raw': 'Raw',
+        'raw': 'Raw',
+
+        # Keto
+        'Keto': 'Keto',
+        'keto': 'Keto',
+
+        # Paleo
+        'Paleo': 'Paleo',
+        'paleo': 'Paleo',
+    }
+
+    for column_name, dietary_label in dietary_columns.items():
+        value = row.get(column_name, '')
+        if value and is_yes_value(value):
+            if dietary_label not in dietary:
+                dietary.append(dietary_label)
+
+    # Handle special case: "Dairy" column often means "Contains Dairy" (opposite of Dairy Free)
+    # Only add "Dairy Free" if explicitly marked as No for Dairy or Yes for Dairy Free
+    dairy_value = row.get('Dairy', '') or row.get('dairy', '')
+    if dairy_value and is_no_value(dairy_value):
+        if 'Dairy Free' not in dietary:
+            dietary.append('Dairy Free')
+
+    return dietary
+
+
+def is_yes_value(value: str) -> bool:
+    """Check if a value represents Yes/True"""
+    if not value:
+        return False
+    v = str(value).strip().lower()
+    return v in ['yes', 'true', '1', 'y', 'x', '✓', '✔']
+
+
+def is_no_value(value: str) -> bool:
+    """Check if a value represents No/False"""
+    if not value:
+        return False
+    v = str(value).strip().lower()
+    return v in ['no', 'false', '0', 'n', '-']
+
+
+def extract_icons_from_csv(row: Dict[str, str], product: Dict[str, Any]) -> List[str]:
+    """
+    Extract Earthfare icon metafield values from CSV row and product data.
+
+    The 4 Earthfare icons are:
+    - Palm Oil Free
+    - Organic
+    - Vegan
+    - Fairtrade
+
+    Detection sources:
+    - CSV columns (e.g., 'Palm Oil Free', 'Fairtrade')
+    - Dietary preferences already extracted
+    - Text content (description, romance copy, ingredients)
+
+    Args:
+        row: CSV row as dictionary
+        product: Product dict with already extracted fields
+    Returns:
+        List of icon names that apply to this product
+    """
+    icons = []
+
+    # Get text fields for scanning
+    text_fields = []
+    for field in ['romance_copy', 'ingredients']:
+        if product.get(field):
+            text_fields.append(str(product[field]).lower())
+
+    # Also check original row description fields
+    for key in ['Description', 'description', 'Romance Copy', 'romance_copy', 'Long Description']:
+        if row.get(key):
+            text_fields.append(str(row[key]).lower())
+
+    combined_text = ' '.join(text_fields)
+
+    # 1. PALM OIL FREE
+    # Check CSV column
+    palm_oil_cols = ['Palm Oil Free', 'palm_oil_free', 'Palm-Oil-Free', 'PalmOilFree']
+    for col in palm_oil_cols:
+        if row.get(col) and is_yes_value(row.get(col, '')):
+            if 'Palm Oil Free' not in icons:
+                icons.append('Palm Oil Free')
+            break
+    # Check text content
+    if 'Palm Oil Free' not in icons:
+        if 'palm oil free' in combined_text or 'palm-oil-free' in combined_text:
+            icons.append('Palm Oil Free')
+
+    # 2. ORGANIC
+    # Check if already in dietary preferences
+    dietary = product.get('dietary', []) or product.get('dietary_preferences', [])
+    if 'Organic' in dietary:
+        icons.append('Organic')
+    # Also check CSV columns and text
+    elif row.get('Organic') and is_yes_value(row.get('Organic', '')):
+        icons.append('Organic')
+    elif 'organic' in combined_text and 'Organic' not in icons:
+        # Be more specific - look for "organic" as certification, not just ingredient
+        import re
+        if re.search(r'\borganic\b', combined_text):
+            icons.append('Organic')
+
+    # 3. VEGAN
+    # Check if already in dietary preferences
+    if 'Vegan' in dietary:
+        icons.append('Vegan')
+    # Also check CSV columns
+    elif row.get('Vegan') and is_yes_value(row.get('Vegan', '')):
+        icons.append('Vegan')
+    elif 'vegan' in combined_text and 'Vegan' not in icons:
+        import re
+        if re.search(r'\bvegan\b', combined_text):
+            icons.append('Vegan')
+
+    # 4. FAIRTRADE
+    # Check CSV columns
+    fairtrade_cols = ['Fairtrade', 'fairtrade', 'Fair Trade', 'fair_trade', 'FairTrade']
+    for col in fairtrade_cols:
+        if row.get(col) and is_yes_value(row.get(col, '')):
+            if 'Fairtrade' not in icons:
+                icons.append('Fairtrade')
+            break
+    # Check text content for fairtrade or rainforest alliance
+    if 'Fairtrade' not in icons:
+        import re
+        if re.search(r'\b(fairtrade|fair[\s-]?trade|rainforest\s*alliance)\b', combined_text):
+            icons.append('Fairtrade')
+
+    return icons
 
 
 def extract_csv_field(row: Dict[str, str], keys: List[str]) -> str:

@@ -328,6 +328,12 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     nutrition_raw = product.get("nutrition") or product.get("nutrition_shopify", [])
     nutrition = format_nutrition_for_metafield(nutrition_raw)
 
+    # Get Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+    # Prefer icons from descriptions (merged from CSV + GPT), fallback to product.icons
+    icons = descriptions.get("icons", [])
+    if not icons and product.get("icons"):
+        icons = product.get("icons", [])
+
     # Build Shopify CSV row
     # ID column included but empty for new products (Matrixify format compatibility)
     # For updates to existing products, populate ID from Shopify admin export
@@ -343,6 +349,7 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
         "Metafield: pdp.ingredients [rich_text_field]": format_rich_text_metafield(ingredients),
         "Metafield: pdp.nutrition [list.single_line_text_field]": format_list_metafield(nutrition),
         "Metafield: custom.dietary_preferences [list.single_line_text_field]": format_list_metafield(dietary),
+        "Metafield: custom.icons [list.single_line_text_field]": format_list_metafield(icons),
         "Metafield: custom.brand [single_line_text_field]": brand
     }
 
@@ -373,5 +380,6 @@ SHOPIFY_CSV_HEADERS = [
     "Metafield: pdp.ingredients [rich_text_field]",
     "Metafield: pdp.nutrition [list.single_line_text_field]",
     "Metafield: custom.dietary_preferences [list.single_line_text_field]",
+    "Metafield: custom.icons [list.single_line_text_field]",
     "Metafield: custom.brand [single_line_text_field]"
 ]

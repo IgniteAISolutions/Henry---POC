@@ -219,29 +219,30 @@ def sanitize_filename(name: str) -> str:
 def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
     """
     Export products to Excel format with professional formatting
-    
+
     Features:
     - Bold headers with background color
     - Auto-width columns (capped for readability)
     - Text wrapping for description columns
     - Frozen header row
     - No image columns
+    - Includes dietary preferences, ingredients, allergens
     """
-    
+
     rows = []
-    
+
     for product in products:
         descriptions = product.get('descriptions', {})
         specs = product.get('specifications', {})
-        
+
         # Get plain text versions (strip HTML for Excel)
         short_desc = strip_html(clean_text(descriptions.get('shortDescription', '')))
         long_desc = strip_html(clean_text(descriptions.get('longDescription', '')))
         meta_desc = strip_html(clean_text(descriptions.get('metaDescription', '')))
         product_name = clean_text(product.get('name', ''))
-        
+
         features = product.get('features', [])
-        
+
         # Get weight
         weight = (
             specs.get('weight', '') or
@@ -250,7 +251,24 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
         )
         if isinstance(weight, str):
             weight = weight.replace('kg', '').replace('KG', '').strip()
-        
+
+        # Get dietary preferences (from CSV extraction or enrichment)
+        dietary = product.get('dietary') or product.get('dietary_preferences') or descriptions.get('dietary_preferences', [])
+        dietary_str = ', '.join(dietary) if isinstance(dietary, list) else str(dietary) if dietary else ''
+
+        # Get ingredients
+        ingredients = product.get('ingredients', '')
+        if isinstance(ingredients, list):
+            ingredients = ', '.join(ingredients)
+
+        # Get allergens
+        allergens = product.get('allergens', [])
+        allergens_str = ', '.join(allergens) if isinstance(allergens, list) else str(allergens) if allergens else ''
+
+        # Get Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+        icons = descriptions.get('icons', []) or product.get('icons', [])
+        icons_str = ', '.join(icons) if isinstance(icons, list) else str(icons) if icons else ''
+
         row = {
             'SKU': product.get('sku', ''),
             'Barcode': product.get('barcode', ''),
@@ -261,9 +279,13 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'Short Description': short_desc,
             'Long Description': long_desc,
             'Meta Description': meta_desc,
+            'Dietary Preferences': dietary_str,
+            'Icons': icons_str,
+            'Ingredients': ingredients,
+            'Allergens': allergens_str,
             'Features': '\n'.join(features) if features else '',
         }
-        
+
         rows.append(row)
     
     df = pd.DataFrame(rows)
@@ -302,7 +324,11 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
             'G': 50,   # Short Description
             'H': 70,   # Long Description
             'I': 50,   # Meta Description
-            'J': 40,   # Features
+            'J': 30,   # Dietary Preferences
+            'K': 35,   # Icons (Palm Oil Free, Organic, Vegan, Fairtrade)
+            'L': 60,   # Ingredients
+            'M': 30,   # Allergens
+            'N': 40,   # Features
         }
         
         # Apply column widths
