@@ -9,11 +9,22 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-# Configure logging - show everything during debugging
+# Configure logging - filter out noisy health probe warnings
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Filter out "Invalid HTTP request received" warnings from uvicorn
+class InvalidHTTPFilter(logging.Filter):
+    def filter(self, record):
+        return "Invalid HTTP request received" not in record.getMessage()
+
+# Apply filter to uvicorn loggers
+for logger_name in ['uvicorn.error', 'uvicorn.access', 'uvicorn']:
+    uv_logger = logging.getLogger(logger_name)
+    uv_logger.addFilter(InvalidHTTPFilter())
+
 logger = logging.getLogger(__name__)
 logger.info("🚀 Starting EarthFare API...")
 
@@ -27,14 +38,14 @@ except ImportError as e:
 
 # Import EarthFare-specific modules
 try:
-    from app.services.product_enricher import enrich_product, enrich_products_batch
+    from app.services.product_enricher import enrich_product, enrich_products
     from app.services.shopify_mapper import map_to_shopify_csv, map_products_to_shopify, SHOPIFY_CSV_HEADERS
     from app.services.dietary_detector import detect_dietary_attributes
     from app.services.nutrition_parser import parse_nutrition_from_html
     logger.info("✅ EarthFare modules imported successfully")
 except ImportError as e:
     logger.warning(f"⚠️ EarthFare modules not fully available: {e}")
-    enrich_product = enrich_products_batch = map_to_shopify_csv = None
+    enrich_product = enrich_products = map_to_shopify_csv = None
 
 from app.config import ALLOWED_CATEGORIES
 
@@ -49,7 +60,7 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# CORS Configuration - Allow Vercel frontend
+# CORS Configuration - Allow Vercel frontend and local dev
 # IMPORTANT: No trailing slashes on origins!
 origins = [
     "https://earthfare.vercel.app",
@@ -60,11 +71,16 @@ origins = [
     "http://127.0.0.1:5173",
 ]
 
+# Add any additional origins from environment variable (comma-separated)
+extra_origins = os.getenv("CORS_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+
 # Add CORS middleware - this MUST be before routes
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now to debug
-    allow_credentials=False,  # Must be False when using "*"
+    allow_origins=origins,  # Use specific origins for security
+    allow_credentials=True,  # Allow credentials with specific origins
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -237,21 +253,31 @@ async def scrape_url_endpoint(
     request: URLScraperRequest,
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
-    """Scrape URL for product data"""
+    """Scrape URL for product data including ingredients, nutrition, and allergens"""
     check_key(x_api_key)
-    
+
     try:
         if request.category not in ALLOWED_CATEGORIES:
             raise HTTPException(status_code=400, detail="Invalid category")
-        
+
         if not url_scraper:
             raise HTTPException(status_code=503, detail="URL scraper not available")
-        
+
+        # Initial scrape for basic product data
         products = await url_scraper.scrape(request.url, request.category)
-        
+
+        # Enrich with ingredients, nutrition, allergens from the scraped content
+        if enrich_products and products:
+            logger.info(f"Enriching {len(products)} products from URL scrape...")
+            try:
+                products = await enrich_products(products, scrape=False)
+            except Exception as enrich_err:
+                logger.warning(f"Enrichment failed, continuing with basic data: {enrich_err}")
+
+        # Generate brand voice descriptions
         if brand_voice:
             products = await brand_voice.generate(products, request.category)
-        
+
         return ProcessingResponse(success=True, products=products)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -346,12 +372,12 @@ async def enrich_products_endpoint(
     check_key(x_api_key)
 
     try:
-        if not enrich_products_batch:
+        if not enrich_products:
             raise HTTPException(status_code=503, detail="Product enrichment service not available")
 
         logger.info(f"🔍 Enriching {len(request.products)} products")
 
-        enriched = await enrich_products_batch(
+        enriched = await enrich_products(
             request.products,
             scrape=request.scrape_suppliers
         )
@@ -437,9 +463,9 @@ async def process_earthfare_endpoint(
         logger.info(f"📊 Parsed {len(products)} products")
 
         # Step 2: Enrich with supplier data (optional)
-        if enrich and enrich_products_batch:
+        if enrich and enrich_products:
             try:
-                products = await enrich_products_batch(products, scrape=True)
+                products = await enrich_products(products, scrape=True)
                 logger.info(f"🔍 Enriched products with nutritional data")
             except Exception as e:
                 logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
