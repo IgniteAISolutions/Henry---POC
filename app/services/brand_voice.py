@@ -316,6 +316,24 @@ def build_prompt(product: Dict[str, Any], category: str) -> str:
     if product.get("isNonStick"):
         prompt_data["isNonStick"] = True
 
+    # Add EarthFare-specific fields from CSV or enrichment
+    # Ingredients - critical for food products
+    if product.get("ingredients"):
+        prompt_data["ingredients"] = product["ingredients"]
+
+    # Dietary preferences/flags (Organic, Vegan, Gluten Free, etc.)
+    dietary = product.get("dietary") or product.get("dietary_preferences")
+    if dietary:
+        prompt_data["dietary_preferences"] = dietary
+
+    # Romance Copy - detailed description from supplier
+    if product.get("romance_copy"):
+        prompt_data["romance_copy"] = product["romance_copy"]
+
+    # Allergens
+    if product.get("allergens"):
+        prompt_data["allergens"] = product["allergens"]
+
     # Build prompt
     return f"Product data:\n{json.dumps(prompt_data, indent=2)}"
 
