@@ -335,11 +335,16 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
         icons = product.get("icons", [])
 
     # Build Shopify CSV row
-    # ID column included but empty for new products (Matrixify format compatibility)
-    # For updates to existing products, populate ID from Shopify admin export
+    # ID column: populated from inventory match for updates, empty for new products
+    shopify_id = product.get("shopify_id", "")
+    shopify_handle = product.get("shopify_handle", "")
+
+    # Use existing handle if matched, otherwise generate new one
+    handle = shopify_handle if shopify_handle else slugify(title)
+
     return {
-        "ID": "",  # Empty for new products, Shopify assigns ID on import
-        "Handle": slugify(title),
+        "ID": shopify_id,  # Empty for new products, Shopify ID for updates
+        "Handle": handle,
         "Title": title,
         "Body HTML": body_html,
         "Vendor": "Earthfare Supermarket",
@@ -354,14 +359,30 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def map_products_to_shopify(products: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+def map_products_to_shopify(
+    products: List[Dict[str, Any]],
+    match_inventory: bool = True
+) -> List[Dict[str, str]]:
     """
     Map multiple products to Shopify CSV format
+
     Args:
         products: List of product dicts with generated descriptions
+        match_inventory: If True, match against existing Shopify inventory for updates
+
     Returns:
         List of Shopify CSV rows
     """
+    # Optionally match against inventory for updates
+    if match_inventory:
+        try:
+            from ..utils.inventory_matcher import load_inventory, match_products_to_inventory
+            inventory = load_inventory()
+            if inventory:
+                products = match_products_to_inventory(products, inventory)
+                logger.info(f"Matched products against {len(inventory)} inventory items")
+        except Exception as e:
+            logger.warning(f"Could not match against inventory: {e}")
     return [map_to_shopify_csv(product) for product in products]
 
 
