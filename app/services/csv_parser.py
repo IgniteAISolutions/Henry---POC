@@ -274,7 +274,7 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
         "name": name.strip(),
         "category": category,
         "sku": sku.strip() if sku else "",
-        "barcode": extract_csv_field(row, ['barcode', 'Barcode', 'ean', 'EAN', 'upc', 'gtin']),
+        "barcode": clean_barcode(extract_csv_field(row, ['barcode', 'Barcode', 'ean', 'EAN', 'upc', 'gtin', 'Variant Barcode'])),
         "brand": extract_csv_field(row, ['brand', 'Brand', 'manufacturer']),
         "range": extract_csv_field(row, ['range', 'Range', 'collection', 'series']),
         "collection": extract_csv_field(row, ['collection', 'Collection']),
@@ -439,6 +439,71 @@ def is_no_value(value: str) -> bool:
         return False
     v = str(value).strip().lower()
     return v in ['no', 'false', '0', 'n', '-']
+
+
+def clean_barcode(barcode: str) -> str:
+    """
+    Clean and normalize barcode string for consistent format
+
+    Handles common issues:
+    - Scientific notation from Excel (e.g., "5.06009E+12")
+    - Floating point numbers (e.g., "5060093992311.0")
+    - Spaces, dashes, dots
+    - Leading/trailing whitespace
+    - Non-numeric characters
+
+    Args:
+        barcode: Raw barcode string from CSV
+
+    Returns:
+        Clean numeric barcode string, or empty string if invalid
+    """
+    if not barcode:
+        return ""
+
+    barcode = str(barcode).strip()
+
+    # Handle scientific notation (e.g., "5.06009E+12" from Excel)
+    if 'e' in barcode.lower():
+        try:
+            # Convert scientific notation to integer
+            barcode = str(int(float(barcode)))
+        except (ValueError, OverflowError):
+            pass
+
+    # Handle floating point numbers (e.g., "5060093992311.0")
+    if '.' in barcode:
+        try:
+            # Remove decimal part if it's .0
+            float_val = float(barcode)
+            if float_val == int(float_val):
+                barcode = str(int(float_val))
+            else:
+                # Has actual decimal, just take integer part
+                barcode = str(int(float_val))
+        except (ValueError, OverflowError):
+            # Not a valid number, try stripping after decimal
+            barcode = barcode.split('.')[0]
+
+    # Remove common separators and non-numeric characters
+    barcode = barcode.replace(' ', '').replace('-', '').replace('.', '')
+
+    # Extract only digits
+    import re
+    digits_only = re.sub(r'[^\d]', '', barcode)
+
+    # Validate length (EAN-8, EAN-13, UPC-A are common)
+    if len(digits_only) >= 8 and len(digits_only) <= 14:
+        # Pad EAN-13 if leading zero was lost (common Excel issue)
+        if len(digits_only) == 12:
+            digits_only = '0' + digits_only
+        return digits_only
+
+    # Return original cleaned version if validation fails but has digits
+    if digits_only:
+        return digits_only
+
+    return ""
 
 
 def extract_nutrition_from_csv(row: Dict[str, str]) -> Dict[str, str]:
