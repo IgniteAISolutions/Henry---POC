@@ -168,29 +168,37 @@ async def parse_csv_endpoint(
     category: str = Form(...),
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
-    """Parse CSV file and generate brand voice descriptions"""
+    """Parse CSV file, enrich with nutrition data, and generate brand voice descriptions"""
     check_key(x_api_key)
-    
+
     try:
         if category not in ALLOWED_CATEGORIES:
             raise HTTPException(status_code=400, detail=f"Invalid category")
-        
+
         logger.info(f"📊 Processing CSV upload for category: {category}")
-        
+
         if not csv_parser:
             raise HTTPException(status_code=503, detail="CSV parser not available")
-        
+
         file_content = await file.read()
         products = await csv_parser.process(file_content, category)
         logger.info(f"✅ Parsed {len(products)} products from CSV")
-        
+
+        # Enrich with OpenFoodFacts nutrition data (uses barcodes from CSV)
+        if enrich_products and products:
+            try:
+                products = await enrich_products(products, scrape=False)
+                logger.info(f"✅ Enriched products with nutrition data")
+            except Exception as e:
+                logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
+
         if brand_voice:
             try:
                 products = await brand_voice.generate(products, category)
                 logger.info(f"✅ Brand voice generated")
             except Exception as e:
                 logger.warning(f"⚠️ Brand voice failed: {e}")
-        
+
         return ProcessingResponse(
             success=True,
             products=products,
