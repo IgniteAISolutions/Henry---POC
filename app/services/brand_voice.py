@@ -94,22 +94,25 @@ AVOID: Corporate stiffness, supermarket language (never sound like Sainsbury's o
 - No emojis, no ALL CAPS, no retail terms (shop/buy/order/price/delivery)
 - No placeholders or [TBD]
 
-## CRITICAL: DO NOT INCLUDE INGREDIENTS IN DESCRIPTION
+## CRITICAL: WHAT NOT TO INCLUDE IN DESCRIPTION
 
-Ingredients are stored separately in a dedicated metafield. The body_html should focus on:
+The body_html should focus on:
 - Benefits and lifestyle appeal
-- Sourcing and certifications
+- Certifications and dietary info
 - Who the product is for
 - How to use/serve (where relevant)
 
-DO NOT list ingredients in the description text.
+DO NOT include in body_html:
+- Ingredient lists (stored in a separate metafield)
+- Country of origin or harvest location (these change between harvests and are managed separately)
+- Weight/size specifications (unless essential to the product story)
 
 ## OUTPUT FORMAT (JSON)
 
 Return ONLY valid JSON:
 {
   "title": "Product Title",
-  "body_html": "<p>[Meta description 150-160 chars, SEO keyword in first 10 words]</p><p>[Lifestyle paragraph - why you'll love it, who it's for]</p><p>[Technical paragraph - sourcing, certifications, brand story]</p><p>[Spec: weight, origin if UK, dietary info]</p>",
+  "body_html": "<p>[Meta description 150-160 chars, SEO keyword in first 10 words]</p><p>[Lifestyle paragraph - why you'll love it, who it's for]</p><p>[Brand/certifications paragraph - brand story, certifications, dietary info. NO ingredients, NO harvest origin]</p>",
   "short_description": "[Benefit 1]<br>[Benefit 2]<br>[Benefit 3]",
   "meta_description": "[150-160 chars, extracted from first sentence]",
   "dietary_preferences": ["Gluten Free", "Vegan", ...],
@@ -171,7 +174,8 @@ short_description for supplements:
 5. Preserve original brand name exactly
 6. title: Use product name from input data
 7. DO NOT include ingredient lists in body_html - they go in a separate field
-8. Vary language - avoid using the same phrases across multiple products
+8. DO NOT include country of origin or harvest location - these change and are managed separately
+9. Vary language - avoid using the same phrases across multiple products
 """.strip()
 
 
