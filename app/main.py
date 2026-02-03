@@ -126,6 +126,102 @@ class URLScraperRequest(BaseModel):
     category: str
 
 # ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def merge_brand_data(products: List[dict], brand_data: List[dict]) -> List[dict]:
+    """
+    Merge scraped brand data with existing products
+
+    Matches products by name (fuzzy) or barcode, then fills in missing fields
+    like nutrition, ingredients, allergens from the brand website scrape.
+
+    Args:
+        products: Products parsed from CSV
+        brand_data: Products scraped from brand URL
+
+    Returns:
+        Products with merged data from brand URL
+    """
+    if not brand_data:
+        return products
+
+    # Build lookup index from brand data by normalized name and barcode
+    brand_index_by_name = {}
+    brand_index_by_barcode = {}
+
+    for item in brand_data:
+        # Index by name (normalized)
+        name = item.get("name", "").strip().lower()
+        if name:
+            # Also index by key words from name
+            brand_index_by_name[name] = item
+            # Index by words for fuzzy matching
+            for word in name.split():
+                if len(word) > 3:  # Only meaningful words
+                    if word not in brand_index_by_name:
+                        brand_index_by_name[word] = item
+
+        # Index by barcode
+        barcode = item.get("barcode", "") or item.get("ean", "")
+        if barcode:
+            brand_index_by_barcode[str(barcode).strip()] = item
+
+    # Merge data into products
+    for product in products:
+        matched_brand = None
+
+        # Try barcode match first (most reliable)
+        barcode = product.get("barcode", "") or product.get("ean", "")
+        if barcode and str(barcode).strip() in brand_index_by_barcode:
+            matched_brand = brand_index_by_barcode[str(barcode).strip()]
+
+        # Try name match
+        if not matched_brand:
+            name = product.get("name", "").strip().lower()
+            if name and name in brand_index_by_name:
+                matched_brand = brand_index_by_name[name]
+
+            # Try partial name match
+            if not matched_brand and name:
+                for word in name.split():
+                    if len(word) > 3 and word in brand_index_by_name:
+                        matched_brand = brand_index_by_name[word]
+                        break
+
+        # Merge matched data (only fill missing fields)
+        if matched_brand:
+            # Nutrition
+            if not product.get("nutrition") and matched_brand.get("nutrition"):
+                product["nutrition"] = matched_brand["nutrition"]
+                product["nutrition_source"] = "brand_website"
+
+            if not product.get("nutrition_shopify") and matched_brand.get("nutrition_shopify"):
+                product["nutrition_shopify"] = matched_brand["nutrition_shopify"]
+
+            # Ingredients
+            if not product.get("ingredients") and matched_brand.get("ingredients"):
+                product["ingredients"] = matched_brand["ingredients"]
+
+            # Allergens
+            if not product.get("allergens") and matched_brand.get("allergens"):
+                product["allergens"] = matched_brand["allergens"]
+
+            # Dietary flags
+            if not product.get("dietary") and matched_brand.get("dietary"):
+                product["dietary"] = matched_brand["dietary"]
+
+            # Description (if missing)
+            if not product.get("romance_copy") and matched_brand.get("description"):
+                product["romance_copy"] = matched_brand["description"]
+
+            product["_brand_url_matched"] = True
+            logger.info(f"✅ Merged brand data for: {product.get('name', 'Unknown')}")
+
+    return products
+
+
+# ============================================================
 # API ENDPOINTS
 # ============================================================
 
@@ -166,9 +262,17 @@ async def healthz():
 async def parse_csv_endpoint(
     file: UploadFile = File(...),
     category: str = Form(...),
+    brand_url: Optional[str] = Form(default=None),
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
-    """Parse CSV file, enrich with nutrition data, and generate brand voice descriptions"""
+    """Parse CSV file, enrich with nutrition data, and generate brand voice descriptions
+
+    Args:
+        file: CSV file with product data
+        category: Product category (e.g., "Health Supplements", "Store Cupboard")
+        brand_url: Optional manufacturer website URL to scrape for additional data
+                   (nutrition, ingredients, etc.) - useful when OpenFoodFacts lacks data
+    """
     check_key(x_api_key)
 
     try:
@@ -176,6 +280,8 @@ async def parse_csv_endpoint(
             raise HTTPException(status_code=400, detail=f"Invalid category")
 
         logger.info(f"📊 Processing CSV upload for category: {category}")
+        if brand_url:
+            logger.info(f"🔗 Brand URL provided for additional scraping: {brand_url}")
 
         if not csv_parser:
             raise HTTPException(status_code=503, detail="CSV parser not available")
@@ -191,6 +297,19 @@ async def parse_csv_endpoint(
                 logger.info(f"✅ Enriched products with nutrition data")
             except Exception as e:
                 logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
+
+        # If brand URL provided, scrape for additional product data
+        if brand_url and url_scraper:
+            try:
+                logger.info(f"🌐 Scraping brand URL for additional data: {brand_url}")
+                brand_data = await url_scraper.scrape(brand_url, category)
+
+                # Merge scraped data with products (match by name/barcode)
+                if brand_data:
+                    products = merge_brand_data(products, brand_data)
+                    logger.info(f"✅ Merged data from brand URL for {len(brand_data)} products")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand URL scraping failed, continuing: {e}")
 
         if brand_voice:
             try:
@@ -452,15 +571,24 @@ async def process_earthfare_endpoint(
     file: UploadFile = File(...),
     category: str = Form(default="Store Cupboard"),
     enrich: bool = Form(default=True),
+    brand_url: Optional[str] = Form(default=None),
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
 ):
     """
     Complete EarthFare pipeline: Parse CSV -> Enrich -> Brand Voice -> Shopify CSV
+
+    Args:
+        file: CSV file with product data
+        category: Product category
+        enrich: Whether to enrich with supplier data
+        brand_url: Optional manufacturer website URL to scrape for additional data
     """
     check_key(x_api_key)
 
     try:
         logger.info(f"🌿 EarthFare pipeline starting for category: {category}")
+        if brand_url:
+            logger.info(f"🔗 Brand URL provided: {brand_url}")
 
         # Step 1: Parse CSV
         if not csv_parser:
@@ -477,6 +605,17 @@ async def process_earthfare_endpoint(
                 logger.info(f"🔍 Enriched products with nutritional data")
             except Exception as e:
                 logger.warning(f"⚠️ Enrichment failed, continuing: {e}")
+
+        # Step 2b: Scrape brand URL for additional data (if provided)
+        if brand_url and url_scraper:
+            try:
+                logger.info(f"🌐 Scraping brand URL: {brand_url}")
+                brand_data = await url_scraper.scrape(brand_url, category)
+                if brand_data:
+                    products = merge_brand_data(products, brand_data)
+                    logger.info(f"✅ Merged data from brand URL")
+            except Exception as e:
+                logger.warning(f"⚠️ Brand URL scraping failed: {e}")
 
         # Step 3: Generate brand voice descriptions
         if brand_voice:
