@@ -12,6 +12,8 @@ import re
 import logging
 from typing import Dict, List, Any, Optional, Union
 
+from .csv_parser import clean_barcode
+
 logger = logging.getLogger(__name__)
 
 
@@ -342,6 +344,10 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     # Use existing handle if matched, otherwise generate new one
     handle = shopify_handle if shopify_handle else slugify(title)
 
+    # Clean barcode to prevent scientific notation issues in export
+    raw_barcode = product.get("barcode", "") or product.get("ean", "")
+    cleaned_barcode = clean_barcode(raw_barcode) if raw_barcode else ""
+
     return {
         "ID": shopify_id,  # Empty for new products, Shopify ID for updates
         "Handle": handle,
@@ -349,7 +355,7 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
         "Body HTML": body_html,
         "Vendor": "Earthfare Supermarket",
         "Type": product.get("category", ""),
-        "Variant Barcode": product.get("barcode", "") or product.get("ean", ""),
+        "Variant Barcode": cleaned_barcode,
         "Metafield: custom.allergens [list.single_line_text_field]": format_list_metafield(allergens),
         "Metafield: pdp.ingredients [rich_text_field]": format_rich_text_metafield(ingredients),
         "Metafield: pdp.nutrition [list.single_line_text_field]": format_list_metafield(nutrition),

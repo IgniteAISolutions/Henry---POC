@@ -11,6 +11,7 @@ from typing import List, Dict, Any
 import pandas as pd
 
 from .shopify_mapper import map_to_shopify_csv, SHOPIFY_CSV_HEADERS
+from .csv_parser import clean_barcode
 
 logger = logging.getLogger(__name__)
 
@@ -74,10 +75,14 @@ def export_to_business_central(products: List[Dict[str, Any]]) -> bytes:
         if isinstance(weight, str):
             weight = weight.replace('kg', '').replace('KG', '').strip()
         
+        # Clean barcode to prevent scientific notation in export
+        raw_barcode = product.get('barcode', '')
+        cleaned_barcode = clean_barcode(raw_barcode) if raw_barcode else ''
+
         # Build row - NO IMAGE COLUMNS
         row = {
             'SKU': sku,
-            'Barcode': product.get('barcode', ''),
+            'Barcode': cleaned_barcode,
             'Description': product_name,
             'Net Weight (KG)': weight,
             'Short Description': short_desc_html,
@@ -85,10 +90,14 @@ def export_to_business_central(products: List[Dict[str, Any]]) -> bytes:
         }
         
         rows.append(row)
-    
+
     # Create DataFrame
     df = pd.DataFrame(rows)
-    
+
+    # Ensure Barcode column is string type to prevent scientific notation
+    if 'Barcode' in df.columns:
+        df['Barcode'] = df['Barcode'].astype(str)
+
     # Export to CSV with UTF-8 BOM
     csv_buffer = io.StringIO()
     df.to_csv(
@@ -139,6 +148,10 @@ def export_to_shopify(products: List[Dict[str, Any]]) -> bytes:
 
     # Create DataFrame with ordered columns
     df = pd.DataFrame(rows, columns=SHOPIFY_CSV_HEADERS)
+
+    # Ensure barcode column is string type to prevent scientific notation
+    if 'Variant Barcode' in df.columns:
+        df['Variant Barcode'] = df['Variant Barcode'].astype(str)
 
     # Export to CSV with UTF-8 BOM
     csv_buffer = io.StringIO()
@@ -297,9 +310,13 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
         else:
             nutrition_str = ''
 
+        # Clean barcode to prevent scientific notation in export
+        raw_barcode = product.get('barcode', '')
+        cleaned_barcode = clean_barcode(raw_barcode) if raw_barcode else ''
+
         row = {
             'SKU': product.get('sku', ''),
-            'Barcode': product.get('barcode', ''),
+            'Barcode': cleaned_barcode,
             'Product Name': product_name,
             'Brand': product.get('brand', ''),
             'Category': product.get('category', ''),
@@ -317,11 +334,15 @@ def export_to_excel(products: List[Dict[str, Any]]) -> bytes:
         }
 
         rows.append(row)
-    
+
     df = pd.DataFrame(rows)
-    
+
+    # Ensure Barcode column is string type to prevent scientific notation
+    if 'Barcode' in df.columns:
+        df['Barcode'] = df['Barcode'].astype(str)
+
     excel_buffer = io.BytesIO()
-    
+
     with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Products')
         
