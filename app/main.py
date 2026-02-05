@@ -318,6 +318,13 @@ async def parse_csv_endpoint(
             except Exception as e:
                 logger.warning(f"⚠️ Brand voice failed: {e}")
 
+        # Log data summary for debugging
+        for p in products[:2]:  # Log first 2 products only
+            has_ingredients = bool(p.get("ingredients"))
+            has_nutrition = bool(p.get("nutrition"))
+            nutrition_keys = list(p.get("nutrition", {}).keys()) if p.get("nutrition") else []
+            logger.info(f"📦 Product '{p.get('name', 'Unknown')[:30]}': ingredients={has_ingredients}, nutrition={has_nutrition} {nutrition_keys}")
+
         return ProcessingResponse(
             success=True,
             products=products,
