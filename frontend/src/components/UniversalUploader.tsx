@@ -184,7 +184,7 @@ async function postForm(path: string, form: FormData, timeoutMs: number = 600000
   }
 }
 
-async function processCSV(file: File, category: Category, onProgress: (msg: string) => void): Promise<Product[]> {
+async function processCSV(file: File, category: Category, brandUrl: string, onProgress: (msg: string) => void): Promise<Product[]> {
   console.log('[CSV] Starting...');
   onProgress('Uploading CSV...');
 
@@ -192,8 +192,14 @@ async function processCSV(file: File, category: Category, onProgress: (msg: stri
   formData.append('file', file, file.name);
   formData.append('category', category);
 
+  // Add brand URL if provided - used to scrape manufacturer website for nutrition/ingredients
+  if (brandUrl && brandUrl.trim()) {
+    formData.append('brand_url', brandUrl.trim());
+    onProgress('Uploading CSV and scraping brand website...');
+  }
+
   onProgress('Parsing CSV and generating brand voice...');
-  const result = await postForm('parse-csv', formData, 120000);
+  const result = await postForm('parse-csv', formData, 180000); // Extended timeout for brand scraping
   const products = normaliseExtractResponse(result);
 
   if (!products || products.length === 0) {
@@ -347,6 +353,7 @@ const UniversalUploader: React.FC = () => {
   const [searchEAN, setSearchEAN] = useState('');
   const [searchText, setSearchText] = useState('');
   const [isExporting, setIsExporting] = useState(false);
+  const [brandUrl, setBrandUrl] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -366,7 +373,7 @@ const UniversalUploader: React.FC = () => {
         case 'csv':
           if (!selectedFile) throw new Error('No file selected');
           if (!preSelectedCategory) throw new Error('Please select a category');
-          products = await processCSV(selectedFile, preSelectedCategory, setStatusMsg);
+          products = await processCSV(selectedFile, preSelectedCategory, brandUrl, setStatusMsg);
           break;
 
         case 'manual-codes':
@@ -444,6 +451,7 @@ const UniversalUploader: React.FC = () => {
     setSearchBarcode('');
     setSearchEAN('');
     setSearchText('');
+    setBrandUrl('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -917,6 +925,30 @@ const UniversalUploader: React.FC = () => {
                     CSV files with product data
                   </p>
                 </label>
+
+                {/* Brand URL - Optional field for scraping manufacturer website */}
+                <div style={{ marginTop: '1.5rem' }}>
+                  <label htmlFor="brand-url" style={{
+                    fontWeight: 600,
+                    display: 'block',
+                    marginBottom: '6px',
+                    color: COLORS.text
+                  }}>
+                    Brand Website URL <span style={{ fontWeight: 400, color: COLORS.textLight }}>(optional)</span>:
+                  </label>
+                  <input
+                    id="brand-url"
+                    type="url"
+                    value={brandUrl}
+                    onChange={(e) => setBrandUrl(e.target.value)}
+                    placeholder="e.g., https://www.brandname.com/products"
+                    style={{ ...INPUT_BASE }}
+                  />
+                  <p style={{ fontSize: '0.85rem', color: COLORS.textLight, marginTop: '0.5rem', lineHeight: '1.4' }}>
+                    💡 <strong>Tip:</strong> Add a manufacturer website URL to pull additional data like nutrition and ingredients
+                    when OpenFoodFacts doesn't have the product. Useful for supplements and specialist products.
+                  </p>
+                </div>
               </>
             )}
 
