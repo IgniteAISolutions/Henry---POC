@@ -336,6 +336,17 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     if not icons and product.get("icons"):
         icons = product.get("icons", [])
 
+    # Supplement disclaimer - only for Supplements & Wellness category
+    category = product.get("category", "")
+    supplement_disclaimer = ""
+    if "supplement" in category.lower() or "wellness" in category.lower():
+        supplement_disclaimer = (
+            "Important: If you are taking any medication, are pregnant or breastfeeding, "
+            "or have an underlying health condition, please consult your doctor or a qualified "
+            "healthcare professional before taking this supplement. Always read the leaflet/product "
+            "before use and for the most up-to-date ingredients lists and directions for use."
+        )
+
     # Build Shopify CSV row
     # ID column: populated from inventory match for updates, empty for new products
     shopify_id = product.get("shopify_id", "")
@@ -361,7 +372,8 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
         "Metafield: pdp.nutrition [list.single_line_text_field]": format_list_metafield(nutrition),
         "Metafield: custom.dietary_preferences [list.single_line_text_field]": format_list_metafield(dietary),
         "Metafield: custom.icons [list.single_line_text_field]": format_list_metafield(icons),
-        "Metafield: custom.brand [single_line_text_field]": brand
+        "Metafield: custom.brand [single_line_text_field]": brand,
+        "Metafield: custom.supplement_disclaimer [multi_line_text_field]": supplement_disclaimer
     }
 
 
@@ -408,5 +420,6 @@ SHOPIFY_CSV_HEADERS = [
     "Metafield: pdp.nutrition [list.single_line_text_field]",
     "Metafield: custom.dietary_preferences [list.single_line_text_field]",
     "Metafield: custom.icons [list.single_line_text_field]",
-    "Metafield: custom.brand [single_line_text_field]"
+    "Metafield: custom.brand [single_line_text_field]",
+    "Metafield: custom.supplement_disclaimer [multi_line_text_field]"
 ]

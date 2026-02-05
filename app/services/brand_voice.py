@@ -149,16 +149,24 @@ For Supplements & Wellness category, use this specific structure:
 
 body_html format:
 ```
-<p>[Opening line: what it is and its traditional/modern use - 150-160 chars for meta]</p>
+<p>[Opening paragraph: What the product is, its source/origin, and traditional/modern uses. This becomes the meta description - keep first sentence to 150-160 chars with SEO keyword in first 10 words.]</p>
 
-<h3>Why should I use this?</h3>
-<p>[2-3 sentences explaining benefits, who it's for, what it supports. Be specific about health benefits where evidence exists. Focus on the user's needs and outcomes.]</p>
+<p>[Key active compounds and their benefits. What makes this ingredient special? What is it traditionally used for? Be specific about health benefits where evidence exists, but avoid making medical claims.]</p>
 
-<h3>How to use</h3>
-<p>[Clear dosage/serving guidance. Include frequency, timing, and any practical tips. E.g., "Take 1-2 capsules daily with food" or "Add 1 teaspoon to water or smoothies".]</p>
+<p>[Who it's for and how it fits into everyday wellness. Optional: sourcing, certifications, or brand credibility if noteworthy.]</p>
 
-<p>[Optional: sourcing, certifications, or brand credibility if noteworthy]</p>
+<h3>How to take</h3>
+<p>[Clear dosage/serving guidance from the product data. Include frequency, timing, and any practical tips. E.g., "Take 1-2 capsules daily with food" or "Add 1 teaspoon to water or smoothies".]</p>
 ```
+
+IMPORTANT for supplements:
+- Write naturally and informatively - the content should flow like the above examples
+- Focus on what the ingredient is, why it's used, and who it benefits
+- Include traditional uses where relevant (e.g., "traditionally used to support immune health")
+- Be honest about benefits without making medical claims
+- The "How to take" section MUST be included with dosage from the product data
+- DO NOT include ingredients list in body_html (stored separately)
+- DO NOT include the disclaimer in body_html (added separately at display time)
 
 short_description for supplements:
 - Key benefit (what it supports)
