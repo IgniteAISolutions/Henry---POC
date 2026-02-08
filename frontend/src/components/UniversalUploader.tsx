@@ -27,6 +27,7 @@ type Product = {
     free_from?: string[];
   };
   ingredients?: string;
+  ingredients_source?: string;
   nutrition?: {
     energy_kcal?: string;
     energy_kj?: string;
@@ -38,6 +39,9 @@ type Product = {
     protein?: string;
     salt?: string;
   };
+  nutrition_source?: string;
+  data_sources?: string[];
+  data_source_url?: string;
   images?: string[];
   price?: string | null;
 };
@@ -54,6 +58,7 @@ type Category =
   | 'Frozen'
   | 'Drinks'
   | 'Health & Beauty'
+  | 'Supplements & Wellness'
   | 'Household'
   | 'Baby & Kids'
   | 'Pet Care';
@@ -66,6 +71,7 @@ const CATEGORY_OPTIONS: readonly Category[] = [
   'Frozen',
   'Drinks',
   'Health & Beauty',
+  'Supplements & Wellness',
   'Household',
   'Baby & Kids',
   'Pet Care',
@@ -674,13 +680,54 @@ const UniversalUploader: React.FC = () => {
               </div>
             )}
 
+            {/* Data Sources - Show where data came from */}
+            {(product.data_sources && product.data_sources.length > 0) || product.data_source_url ? (
+              <div style={{ background: '#e3f2fd', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #90caf9', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.85rem', color: '#1565c0', fontWeight: 600 }}>📍 Data Sources:</span>
+                  {product.data_sources?.map((source, i) => (
+                    <span key={i} style={{
+                      background: '#bbdefb',
+                      color: '#0d47a1',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.8rem'
+                    }}>
+                      {source}
+                    </span>
+                  ))}
+                  {product.data_source_url && (
+                    <a
+                      href={product.data_source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: '0.8rem',
+                        color: '#1565c0',
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      Verify Source ↗
+                    </a>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
             {/* Ingredients and Nutrition - Two Column Layout */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               {/* Ingredients */}
               <div style={{ background: COLORS.background, padding: '1rem', borderRadius: '8px', border: BORDER_THIN }}>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', color: COLORS.primary, fontSize: '1rem' }}>
-                  🥗 Ingredients
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 600, color: COLORS.primary, fontSize: '1rem' }}>
+                    🥗 Ingredients
+                  </label>
+                  {product.ingredients_source && (
+                    <span style={{ fontSize: '0.7rem', color: COLORS.textLight, background: '#e8f5e9', padding: '2px 6px', borderRadius: '4px' }}>
+                      via {product.ingredients_source}
+                    </span>
+                  )}
+                </div>
                 {product.ingredients ? (
                   <p style={{ margin: 0, color: COLORS.text, lineHeight: '1.5', fontSize: '0.9rem' }}>
                     {product.ingredients}
@@ -694,9 +741,16 @@ const UniversalUploader: React.FC = () => {
 
               {/* Nutrition Table */}
               <div style={{ background: COLORS.background, padding: '1rem', borderRadius: '8px', border: BORDER_THIN }}>
-                <label style={{ fontWeight: 600, display: 'block', marginBottom: '8px', color: COLORS.primary, fontSize: '1rem' }}>
-                  📊 Nutrition (per 100g)
-                </label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 600, color: COLORS.primary, fontSize: '1rem' }}>
+                    📊 Nutrition (per 100g)
+                  </label>
+                  {product.nutrition_source && (
+                    <span style={{ fontSize: '0.7rem', color: COLORS.textLight, background: '#e8f5e9', padding: '2px 6px', borderRadius: '4px' }}>
+                      via {product.nutrition_source}
+                    </span>
+                  )}
+                </div>
                 {product.nutrition && Object.keys(product.nutrition).length > 0 ? (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <tbody>

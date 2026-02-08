@@ -238,6 +238,11 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     Parse a single CSV row into product dictionary
     Extracts all available data including dietary flags, ingredients, and romance copy
     """
+    # Log available columns for debugging (only for first row processed)
+    if not hasattr(parse_csv_row, '_logged_columns'):
+        parse_csv_row._logged_columns = True
+        logger.info(f"📋 CSV columns available: {list(row.keys())}")
+
     # Get product name - prioritize Description (most likely to have real name)
     name = (
         row.get('Description') or
@@ -293,11 +298,21 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     ingredients = extract_csv_field(row, ['Ingredients', 'ingredients', 'Ingredient', 'ingredient', 'contents', 'composition'])
     if ingredients:
         product["ingredients"] = ingredients
+        logger.debug(f"✅ Found ingredients for {name[:30]}...")
+    else:
+        logger.debug(f"⚠️ No ingredients column found for {name[:30]}...")
 
     # Extract Romance Copy as the detailed product description
     romance_copy = extract_csv_field(row, ['Romance Copy', 'romance_copy', 'Romance', 'romance', 'Long Description', 'long_description', 'detailed_description'])
     if romance_copy:
         product["romance_copy"] = romance_copy
+
+        # Try to extract ingredients from romance_copy if no dedicated column found
+        if not product.get("ingredients"):
+            extracted_ingredients = extract_ingredients_from_text(romance_copy)
+            if extracted_ingredients:
+                product["ingredients"] = extracted_ingredients
+                logger.debug(f"✅ Extracted ingredients from romance_copy for {name[:30]}...")
 
     # Extract dietary preferences from boolean flags in CSV
     dietary = extract_dietary_from_csv(row)
@@ -331,6 +346,9 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
     if nutrition:
         product["nutrition"] = nutrition
         product["nutrition_source"] = "csv"
+        logger.debug(f"✅ Found nutrition for {name[:30]}...: {list(nutrition.keys())}")
+    else:
+        logger.debug(f"⚠️ No nutrition columns found for {name[:30]}...")
 
     return product
 
@@ -644,6 +662,49 @@ def clean_nutrition_value(value: str) -> str:
     match = re.search(r'(\d+\.?\d*)', value)
     if match:
         return match.group(1)
+
+    return ""
+
+
+def extract_ingredients_from_text(text: str) -> str:
+    """
+    Extract ingredients from a text block (like romance copy or description)
+
+    Looks for patterns like:
+    - "Ingredients:" or "Ingredients\n"
+    - "Contains:" (for ingredients list)
+    - "Composition:"
+
+    Args:
+        text: Text that may contain embedded ingredients
+
+    Returns:
+        Extracted ingredients string, or empty string if not found
+    """
+    import re
+
+    if not text:
+        return ""
+
+    # Patterns to find ingredients section (case insensitive)
+    patterns = [
+        # "Ingredients:" or "Ingredients\n" followed by content
+        r'(?:^|\n)\s*Ingredients?\s*[:\-]?\s*(.+?)(?=\n\s*(?:Allergens?|Nutrition|Storage|Directions|How to|Warning|$))',
+        # "Contains:" followed by ingredients list
+        r'(?:^|\n)\s*Contains\s*[:\-]?\s*(.+?)(?=\n\s*(?:May contain|Allergens?|$))',
+        # Simple "Ingredients:" to end of text
+        r'Ingredients?\s*[:\-]\s*(.+?)$',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE | re.DOTALL)
+        if match:
+            ingredients = match.group(1).strip()
+            # Clean up - remove excessive whitespace
+            ingredients = re.sub(r'\s+', ' ', ingredients)
+            # Don't return if too short (probably not real ingredients)
+            if len(ingredients) > 10:
+                return ingredients
 
     return ""
 
