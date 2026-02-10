@@ -47,46 +47,75 @@ async def fetch_nutrition_by_barcode(barcode: str) -> Optional[Dict[str, Any]]:
             "brands": "Brand Name"
         }
     """
+    logger.info(f"🔍 [OFF] fetch_nutrition_by_barcode called with: '{barcode}'")
+
     if not barcode:
+        logger.warning(f"⚠️ [OFF] Empty barcode provided")
         return None
 
     # Clean barcode - remove spaces, dashes
+    original_barcode = barcode
     barcode = str(barcode).strip().replace(" ", "").replace("-", "")
+
+    # Handle scientific notation (e.g., "5.06009E+12" from Excel)
+    if 'e' in barcode.lower() or 'E' in barcode:
+        try:
+            barcode = str(int(float(barcode)))
+            logger.info(f"🔧 [OFF] Converted scientific notation: {original_barcode} -> {barcode}")
+        except (ValueError, OverflowError):
+            pass
+
+    # Handle floating point numbers (e.g., "5060093992311.0")
+    if '.' in barcode:
+        try:
+            barcode = str(int(float(barcode)))
+            logger.info(f"🔧 [OFF] Converted float: {original_barcode} -> {barcode}")
+        except (ValueError, OverflowError):
+            barcode = barcode.split('.')[0]
+
+    logger.info(f"🔍 [OFF] Cleaned barcode: '{barcode}' (original: '{original_barcode}')")
 
     # Validate barcode format (should be numeric, 8-14 digits)
     if not barcode.isdigit() or len(barcode) < 8 or len(barcode) > 14:
-        logger.warning(f"Invalid barcode format: {barcode}")
+        logger.warning(f"⚠️ [OFF] Invalid barcode format after cleaning: '{barcode}' (length={len(barcode)}, isdigit={barcode.isdigit()})")
         return None
 
     url = f"{OFF_API_BASE}/{barcode}.json"
+    logger.info(f"🌐 [OFF] Calling API: {url}")
 
     try:
         async with aiohttp.ClientSession() as session:
+            logger.info(f"📡 [OFF] Making request to OpenFoodFacts...")
             async with session.get(
                 url,
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
                 headers={"User-Agent": "Earthfare-ProductAutomation/1.0"}
             ) as response:
+                logger.info(f"📡 [OFF] Response status: {response.status}")
 
                 if response.status == 404:
-                    logger.info(f"Product not found in OpenFoodFacts: {barcode}")
+                    logger.info(f"❌ [OFF] Product not found (404): {barcode}")
                     return None
 
                 if response.status != 200:
-                    logger.warning(f"OpenFoodFacts API error {response.status} for barcode {barcode}")
+                    logger.warning(f"⚠️ [OFF] API error {response.status} for barcode {barcode}")
                     return None
 
                 data = await response.json()
+                logger.info(f"📦 [OFF] Response status field: {data.get('status')}")
 
                 if data.get("status") != 1:
-                    logger.info(f"Product not found in OpenFoodFacts: {barcode}")
+                    logger.info(f"❌ [OFF] Product not found (status!=1): {barcode}")
                     return None
 
                 product = data.get("product", {})
                 nutriments = product.get("nutriments", {})
 
+                logger.info(f"✅ [OFF] Product found: '{product.get('product_name', 'N/A')}'")
+                logger.info(f"📊 [OFF] Has nutriments: {bool(nutriments)}, Has ingredients: {bool(product.get('ingredients_text'))}")
+
                 if not nutriments:
-                    logger.info(f"No nutrition data for barcode {barcode}")
+                    logger.info(f"⚠️ [OFF] No nutrition data for barcode {barcode}")
                     return None
 
                 # Extract nutrition per 100g

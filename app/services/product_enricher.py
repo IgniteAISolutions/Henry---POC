@@ -98,7 +98,11 @@ async def enrich_product(product: Dict[str, Any], scrape: bool = True) -> Dict[s
     name = product.get("name") or product.get("Title") or product.get("product_name", "")
     brand = product.get("brand") or product.get("Vendor", "")
 
-    logger.info(f"Enriching product: {name} (EAN: {ean})")
+    logger.info(f"=" * 60)
+    logger.info(f"🔄 [ENRICH] Starting enrichment for: {name}")
+    logger.info(f"🔄 [ENRICH] Barcode/EAN: '{ean}' (type: {type(ean).__name__})")
+    logger.info(f"🔄 [ENRICH] Brand: '{brand}'")
+    logger.info(f"🔄 [ENRICH] HAS_OPENFOODFACTS: {HAS_OPENFOODFACTS}")
 
     # Track nutrition source for transparency
     nutrition_source = product.get("nutrition_source", "")
@@ -110,29 +114,34 @@ async def enrich_product(product: Dict[str, Any], scrape: bool = True) -> Dict[s
 
     # Priority 2: Try OpenFoodFacts if we have a barcode and no nutrition yet
     elif not nutrition and ean and HAS_OPENFOODFACTS:
-        logger.info(f"Fetching nutrition from OpenFoodFacts for barcode {ean}")
+        logger.info(f"🌐 [ENRICH] OpenFoodFacts lookup - barcode: '{ean}'")
         try:
             off_data = await fetch_nutrition_by_barcode(ean)
+            logger.info(f"🌐 [ENRICH] OpenFoodFacts returned: {type(off_data).__name__}")
             if off_data:
+                logger.info(f"🌐 [ENRICH] OFF data keys: {list(off_data.keys())}")
                 # Get nutrition data (always available if product found)
                 nutrition = {k: v for k, v in off_data.items()
                             if k not in ['source', 'product_name', 'brands', 'barcode',
                                         'ingredients_from_off', 'allergens_from_off']}
                 nutrition_source = "openfoodfacts"
-                logger.info(f"✅ Got nutrition from OpenFoodFacts for {name}")
+                logger.info(f"✅ [ENRICH] Got nutrition from OpenFoodFacts: {list(nutrition.keys())}")
 
                 # Also get ingredients and allergens from OFF if available
                 if off_data.get("ingredients_from_off") and not product.get("ingredients"):
                     product["ingredients"] = off_data["ingredients_from_off"]
                     product["ingredients_source"] = "openfoodfacts"
-                    logger.info(f"✅ Got ingredients from OpenFoodFacts for {name}")
+                    logger.info(f"✅ [ENRICH] Got ingredients from OpenFoodFacts (length: {len(product['ingredients'])})")
 
                 if off_data.get("allergens_from_off") and not product.get("allergens"):
                     product["allergens"] = off_data["allergens_from_off"]
+                    logger.info(f"✅ [ENRICH] Got allergens from OpenFoodFacts: {product['allergens']}")
             else:
-                logger.info(f"⚠️ No OpenFoodFacts data found for barcode {ean}")
+                logger.info(f"⚠️ [ENRICH] OpenFoodFacts returned None for barcode '{ean}'")
         except Exception as e:
-            logger.warning(f"⚠️ OpenFoodFacts lookup failed for {ean}: {e}")
+            logger.warning(f"❌ [ENRICH] OpenFoodFacts lookup failed for '{ean}': {e}")
+            import traceback
+            logger.warning(f"❌ [ENRICH] Traceback: {traceback.format_exc()}")
 
     # Priority 2b: Try brand website scraping if we have brand and still missing data
     if HAS_BRAND_SCRAPER and brand and (not nutrition or not product.get("ingredients")):
@@ -231,7 +240,15 @@ async def enrich_product(product: Dict[str, Any], scrape: bool = True) -> Dict[s
         "_scrape_sources": scraped_data.get("_sources", [])
     }
 
-    logger.info(f"✅ Enriched {name}: nutrition={nutrition_source or 'none'}, ingredients={product.get('ingredients_source') or 'none'}, {len(dietary)} dietary, {len(allergens)} allergens")
+    logger.info(f"=" * 60)
+    logger.info(f"✅ [ENRICH] COMPLETED: {name}")
+    logger.info(f"   - Nutrition source: {nutrition_source or 'none'}")
+    logger.info(f"   - Ingredients source: {product.get('ingredients_source') or 'none'}")
+    logger.info(f"   - Ingredients present: {bool(enriched.get('ingredients'))}")
+    logger.info(f"   - Nutrition keys: {list(enriched.get('nutrition', {}).keys())}")
+    logger.info(f"   - Dietary flags: {dietary}")
+    logger.info(f"   - Allergens: {allergens}")
+    logger.info(f"=" * 60)
 
     return enriched
 

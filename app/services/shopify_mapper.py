@@ -300,6 +300,12 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     Returns:
         Dict with Shopify CSV column names and values
     """
+    name = product.get("name", "Unknown")
+    logger.info(f"🗺️ [MAPPER] Mapping product: {name}")
+    logger.info(f"🗺️ [MAPPER] Product keys: {list(product.keys())}")
+    logger.info(f"🗺️ [MAPPER] Has nutrition: {bool(product.get('nutrition'))}")
+    logger.info(f"🗺️ [MAPPER] Has ingredients: {bool(product.get('ingredients'))}")
+
     # Get descriptions from product
     descriptions = product.get("descriptions", {})
 
@@ -359,7 +365,7 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     raw_barcode = product.get("barcode", "") or product.get("ean", "")
     cleaned_barcode = clean_barcode(raw_barcode) if raw_barcode else ""
 
-    return {
+    result = {
         "ID": shopify_id,  # Empty for new products, Shopify ID for updates
         "Handle": handle,
         "Title": title,
@@ -375,6 +381,15 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
         "Metafield: custom.brand [single_line_text_field]": brand,
         "Metafield: custom.supplement_disclaimer [multi_line_text_field]": supplement_disclaimer
     }
+
+    # Log output for debugging
+    logger.info(f"🗺️ [MAPPER] Output for {name}:")
+    logger.info(f"   - Barcode: '{cleaned_barcode}'")
+    logger.info(f"   - Ingredients metafield empty: {not result['Metafield: pdp.ingredients [rich_text_field]']}")
+    logger.info(f"   - Nutrition metafield empty: {not result['Metafield: pdp.nutrition [list.single_line_text_field]']}")
+    logger.info(f"   - Allergens metafield: {result['Metafield: custom.allergens [list.single_line_text_field]'][:50] if result['Metafield: custom.allergens [list.single_line_text_field]'] else 'empty'}")
+
+    return result
 
 
 def map_products_to_shopify(
