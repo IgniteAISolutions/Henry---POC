@@ -36,3 +36,4 @@ starlette==0.35.1
 
 # Async support
 anyio==4.2.0
+aiohttp==3.9.1
