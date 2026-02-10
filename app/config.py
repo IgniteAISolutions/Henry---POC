@@ -1,4 +1,4 @@
-﻿"""
+"""
 Configuration, constants, and category-specific rules
 """
 

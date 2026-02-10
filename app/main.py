@@ -65,6 +65,7 @@ app = FastAPI(
 origins = [
     "https://earthfare.vercel.app",
     "https://earthfare-git-claude-earthfare-b-54053e-chris-projects-562b0f0c.vercel.app",
+    "https://henry---poc-u53318.vm.elestio.app",  # Elestio backend (for testing)
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:3000",
