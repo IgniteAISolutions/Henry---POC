@@ -1,0 +1,222 @@
+Name	VAT Rate	Recom. Profit %	Minimum Profit %	Dept Code
+1 GROCERIES	Zero Rate 0	39	30	1
+11 TINS & JARS	Zero Rate 0	39	25	11
+111 Tinned Pulses	Zero Rate 0	39	25	111
+112 Baked Beans	Zero Rate 0	39	25	112
+113 Tinned Fruit	Zero Rate 0	39	25	113
+114 Tinned Vegetables	Zero Rate 0	39	25	114
+115 Soups & Meals	Zero Rate 0	39	25	115
+116 Tomatoes	Zero Rate 0	40	25	116
+117 Tinned Meat Alternatives	Zero Rate 0	40	25	117
+118 Pasta Sauces	Zero Rate 0	39	25	118
+12 SPREADS	Zero Rate 0	39	25	12
+121 Nut Butter	Zero Rate 0	39	25	121
+122 Tahini	Zero Rate 0	39	25	122
+123 Jams & Marmalade	Zero Rate 0	39	25	123
+124 Honey	Zero Rate 0	37	25	124
+125 Syrups	Zero Rate 0	39	25	125
+126 Sweet Spreads	Zero Rate 0	39	25	126
+127 Savoury Spreads	Zero Rate 0	39	25	127
+13 DRIED FOODS	Zero Rate 0	39	25	13
+131 Beans & Pulses	Zero Rate 0	39	25	131
+132 Rice & Grains	Zero Rate 0	39	25	132
+133 Pasta & Noodles	Zero Rate 0	39	25	133
+134 Nuts	Zero Rate 0	40	25	134
+135 Seeds	Zero Rate 0	39	25	135
+136 Dried Fruit	Zero Rate 0	39	25	136
+137 Dried Meat Alternatives	Zero Rate 0	39	25	137
+138 Cereals	Zero Rate 0	38	25	138
+14 SNACKS	Zero Rate 0	39	25	14
+141 Chocolate	Standard Rate 20% 20	40	25	141
+142 Sweets	Standard Rate 20% 20	40	25	142
+143 Flapjacks & Snack Bars	Standard Rate 20% 20	40	25	143
+144 Crisps & Snacks	Zero Rate 0	39	25	144
+145 Biscuits & Cakes	Zero Rate 0	38	25	145
+146 Ricecakes & Crackers	Zero Rate 0	39	25	146
+147 Longlife Breads	Zero Rate 0	38	25	147
+15 INGREDIENTS	Zero Rate 0	39	25	15
+151 Oils	Zero Rate 0	37	25	151
+152 Vinegars	Zero Rate 0	39	25	152
+153 Salts & Stocks	Zero Rate 0	39	25	153
+154 Herbs & Spices	Zero Rate 0	40	25	154
+155 Condiments	Zero Rate 0	39	25	155
+156 Coconut Products	Zero Rate 0	40	25	156
+157 Seaweeds	Zero Rate 0	40	25	157
+158 World Foods	Zero Rate 0	39	25	158
+16 BAKING	Zero Rate 0	39	25	16
+161 Flour	Zero Rate 0	40	25	161
+162 Sugar	Zero Rate 0	39	25	162
+163 Baking Ingredients	Zero Rate 0	39	25	163
+164 Baking Mixes	Zero Rate 0	39	25	164
+165 Desserts	Standard Rate 20% 20	39	25	165
+2 FRESH	Zero Rate 0	35	25	2
+21 BAKERY	Zero Rate 0	35	25	21
+211 Bread	Zero Rate 0	32	25	211
+212 Pastries	Zero Rate 0	32	25	212
+22 CHILLED	Zero Rate 0	35	25	22
+220 Kombucha	Standard Rate 20% 20	38	25	220
+221 Dairy	Zero Rate 0	32	25	2211
+222 Non Dairy	Zero Rate 0	35	25	222
+223 Meat Alternatives	Zero Rate 0	35	25	223
+224 Fermented	Zero Rate 0	36	25	224
+225 Ready Meals	Zero Rate 0	36	25	225
+226 Pies & Snacks	Zero Rate 0	36	25	226
+227 Dips & Sauces	Zero Rate 0	34	25	227
+228 Cakes & Chocolate	Zero Rate 0	37	25	228
+229 Juices & Smoothies	Zero Rate 0	38	25	229
+23 Eggs	Zero Rate 0	32	25	23
+24 FRUIT & VEGETABLES	Zero Rate 0	40	25	24
+241 FRUIT	Zero Rate 0	40	25	241
+2411 Organic Fruit	Zero Rate 0	40	25	2411
+2412 NCO Fruit	Zero Rate 0	40	25	2412
+242 VEGETABLES	Zero Rate 0	40	25	242
+2421 Organic Vegetables	Zero Rate 0	40	0	2421
+2422 NCO Vegetables	Zero Rate 0	40	25	2422
+243 SALAD & HERBS	Zero Rate 0	40	25	243
+2431 Organic Salad & Herbs	Zero Rate 0	40	25	2431
+2432 NCO Salad & Herbs	Zero Rate 0	40	25	2432
+244 Sprouts	Zero Rate 0	40	25	244
+245 Fruit & Veg Seeds	Zero Rate 0	40	25	245
+3 DRINKS	Standard Rate 20% 20	39	25	3
+31 SOFT	Standard Rate 20% 20	39	25	31
+311 Juice	Standard Rate 20% 20	39	25	311
+312 Squash & Cordials	Standard Rate 20% 20	39	25	312
+313 Water	Standard Rate 20% 20	45	25	313
+314 Sparkling	Standard Rate 20% 20	39	25	314
+315 Energy	Standard Rate 20% 20	39	25	315
+316 Cold Brew	Standard Rate 20% 20	39	25	316
+317 Other Soft	Standard Rate 20% 20	39	25	317
+32 HOT DRINKS	Zero Rate 0	38	25	32
+321 Tea	Zero Rate 0	38	25	321
+322 Herbal	Zero Rate 0	38	25	322
+323 Coffee	Zero Rate 0	38	25	323
+324 Hot Chocolate	Zero Rate 0	40	25	324
+325 Other Hot Drinks	Zero Rate 0	39	25	325
+33 MILKS	Zero Rate 0	35	25	33
+331 Plant Milks	Zero Rate 0	32	25	331
+332 Plant Creams	Zero Rate 0	36	25	332
+34 ALCOHOL	Standard Rate 20% 20	25	25	34
+341 WINE	Standard Rate 20% 20	25	25	341
+3411 Red Wine	Standard Rate 20% 20	25	25	3411
+3412 White Wine	Standard Rate 20% 20	25	25	3412
+3413 Rose & Sparkling	Standard Rate 20% 20	25	25	3413
+3414 Fruit Wine	Standard Rate 20% 20	25	25	3414
+342 Beers & Ales	Standard Rate 20% 20	25	25	342
+343 Cider	Standard Rate 20% 20	25	25	343
+344 Spirits, Liqueurs & Mead	Standard Rate 20% 20	25	25	344
+345 No & Lo Alcohol	Standard Rate 20% 20	25	25	345
+346 Cocktails	Standard Rate 20% 20	25	25	346
+4 FROZEN	Zero Rate 0	39	25	4
+41 Frozen Ready Meals	Zero Rate 0	39	25	41
+42 Frozen Meat Alternatives	Zero Rate 0	39	25	42
+43 Frozen Fruit	Zero Rate 0	39	25	43
+44 Frozen Vegetables	Zero Rate 0	39	25	44
+45 Frozen Desserts	Standard Rate 20% 20	39	25	45
+46 Ice Cream	Standard Rate 20% 20	39	25	46
+47 Frozen Other	Zero Rate 0	39	25	47
+5 HOUSEHOLD & NON FOOD	Standard Rate 20% 20	40	35	5
+51 CLEANING & LAUNDRY	Standard Rate 20% 20	40	35	51
+511 Laundry	Standard Rate 20% 20	40	35	511
+512 Cleaning	Standard Rate 20% 20	40	35	512
+513 Cloths & Pads	Standard Rate 20% 20	40	35	513
+52 CONSUMABLES	Standard Rate 20% 20	40	35	52
+521 Paper Products	Standard Rate 20% 20	40	35	521
+522 Other Consumables	Standard Rate 20% 20	40	35	522
+53 Incense	Standard Rate 20% 20	40	35	53
+54 GIFTS	Standard Rate 20% 20	40	35	54
+541 Candles & Holders	Standard Rate 20% 20	40	35	541
+542 Salt Lamps	Standard Rate 20% 20	40	35	542
+543 Other Gifts	Standard Rate 20% 20	40	35	543
+55 Magazines	Zero Rate 0	35	25	55
+56 Books	Zero Rate 0	35	25	56
+57 Greetings Cards	Standard Rate 20% 20	45	40	57
+58 Plastic Free	Standard Rate 20% 20	40	35	58
+59 Clothing	Standard Rate 20% 20	37	32	59
+6 BODYCARE	Standard Rate 20% 20	39	35	6
+61 SKINCARE	Standard Rate 20% 20	39	35	61
+610 Soap	Standard Rate 20% 20	39	35	610
+611 Creams & Oils	Standard Rate 20% 20	39	35	611
+612 Bath	Standard Rate 20% 20	39	35	612
+613 Deodorants	Standard Rate 20% 20	39	35	613
+614 Perfume	Standard Rate 20% 20	39	35	614
+615 Clays	Standard Rate 20% 20	39	35	615
+616 Shaving	Standard Rate 20% 20	39	35	616
+617 Bodycare Accessories	Standard Rate 20% 20	39	35	617
+618 Makeup	Standard Rate 20% 20	39	35	618
+619 Facial Skincare	Standard Rate 20% 20	39	35	619
+63 HAIRCARE	Standard Rate 20% 20	39	35	63
+631 Shampoo	Standard Rate 20% 20	39	35	631
+632 Conditioner	Standard Rate 20% 20	39	35	632
+633 Hair Colour	Standard Rate 20% 20	39	35	633
+634 Other Hair	Standard Rate 20% 20	39	35	634
+64 Oral Hygiene	Standard Rate 20% 20	39	35	64
+65 Suncare	Standard Rate 20% 20	39	35	65
+66 PERSONAL CARE	Zero Rate 0	35	25	66
+661 Feminine Hygiene	Zero Rate 0	37	32	661
+662 Personal	Zero Rate 0	39	35	662
+67 Baby	Standard Rate 20% 20	37	30	67
+7 HEALTH	Standard Rate 20% 20	37	30	7
+71 SUPPLEMENTS	Standard Rate 20% 20	37	30	71
+710 Other Supplements	Standard Rate 20% 20	37	30	710
+7101 Amino Acids	Standard Rate 20% 20	37	25	7101
+711 Vitamins & Minerals	Standard Rate 20% 20	37	30	711
+712 Immunity	Standard Rate 20% 20	37	30	712
+713 Joints	Standard Rate 20% 20	37	30	713
+714 Digestion	Standard Rate 20% 20	37	30	714
+715 Heart & Circulation	Standard Rate 20% 20	37	30	715
+716 Sleep & Stress	Standard Rate 20% 20	37	30	716
+717 Womens	Standard Rate 20% 20	37	30	717
+718 Mens	Standard Rate 20% 20	37	30	718
+719 Kids	Standard Rate 20% 20	37	30	719
+72 Flower Remedies	Standard Rate 20% 20	39	30	72
+73 Homeopathy	Standard Rate 20% 20	39	30	73
+74 Superfoods	Standard Rate 20% 20	37	30	74
+75 SPORTS NUTRITION	Standard Rate 20% 20	37	30	75
+751 Protein	Standard Rate 20% 20	39	30	751
+752 Sports Supplements	Standard Rate 20% 20	39	30	752
+76 AROMATHERAPY	Standard Rate 20% 20	39	30	76
+761 Essential Oils	Standard Rate 20% 20	39	30	761
+762 Base Oils	Standard Rate 20% 20	39	30	762
+763 Oil Blends	Standard Rate 20% 20	39	30	763
+764 Other Aromatherapy	Standard Rate 20% 20	39	30	764
+77 Mushrooms	Standard Rate 20% 20	37	30	77
+78 CBD	Standard Rate 20% 20	37	25	78
+79 Omega	Standard Rate 20% 20	37	25	79
+8 PROMO & SEASONAL	Standard Rate 20% 20	40	30	8
+81 Promotion	Standard Rate 20% 20	35	25	81
+82 Clearance	Standard Rate 20% 20	35	25	82
+83 SEASONAL	Standard Rate 20% 20	40	30	83
+831 Christmas	Standard Rate 20% 20	40	30	831
+8312 Christmas Hampers	Low Rate 5% 5	40	35	8312
+8313 Christmas Advent Calanders	Standard Rate 20% 20	40	30	8313
+8314 Christmas Chocolates, Cakes and Treats 	Standard Rate 20% 20	40	35	8314
+8315 Christmas Dinner	Zero Rate 0	40	30	8315
+8316 Christmas Cheese, Crackers and Chutneys	Zero Rate 0	40	30	8316
+8317 Christmas Drinks	Zero Rate 0	40	30	8317
+832 Other Seasonal	Standard Rate 20% 20	37	30	832
+84 Giftcards	Zero Rate 0	0	0	84
+85 Miscellaneous Items	Zero Rate 0	0	0	85
+9 EARTHFARE KITCHEN	Standard Rate 20% 20	0	0	9
+91 DELI	Standard Rate 20% 20	0	0	91
+911 Deli Cake	Zero Rate 0	0	0	911
+912 Deli Chocolate	Standard Rate 20% 20	0	0	912
+913 Deli Coffee	Standard Rate 20% 20	0	0	913
+914 Deli Hot Drinks	Standard Rate 20% 20	0	0	914
+915 Deli Juices & Smoothies	Standard Rate 20% 20	0	0	915
+916 Deli Hot Takeaway	Standard Rate 20% 20	0	0	916
+917 Deli Cold Takeaway	Zero Rate 0	0	0	917
+92 Kitchen	Standard Rate 20% 20	0	0	92
+99 Bags	Standard Rate 20% 20	0	0	9992
+99 Deli/Salad Pots	Standard Rate 20% 20	0	0	9995
+99 OLD	Zero Rate 0	35	25	99999
+99 OLD ESS OILS	Standard Rate 20% 20	0	0	9998
+99 Packaging Consumable	Standard Rate 20% 20	0	0	9991
+99 Vegware Cups	Standard Rate 20% 20	0	0	9993
+99 Vegware Lids/Clutch	Standard Rate 20% 20	0	0	9994
+99 Vegware Straws	Standard Rate 20% 20	0	0	9996
+999 HOLDING DEPT	Standard Rate 20% 20	0	0	999999
+9999 REDUCED	Standard Rate 20% 20	0	0	99999999
+9999 STAFF	Standard Rate 20% 20	0	0	9999999
+Autoloaded Items	Standard Rate 20% 20	0	0	XXXX
+Milk	Zero Rate 0	0	0	221110
+Miscellaneous Items	Standard Rate 20% 20	0	0	MISC
