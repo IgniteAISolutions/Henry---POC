@@ -49,9 +49,8 @@ type Product = {
 type Step = 'input' | 'processing' | 'complete';
 type Tab = 'csv' | 'manual-codes' | 'website-url';
 
-// EarthFare grocery categories - 9 Main Categories + Legacy
+// EarthFare grocery categories - 9 Main Categories (matching Vector/Shopify)
 type Category =
-  // Main categories (matching Vector/Shopify)
   | 'Groceries'
   | 'Fresh'
   | 'Drinks'
@@ -60,24 +59,9 @@ type Category =
   | 'Body Care'
   | 'Health'
   | 'Promo and Seasonal'
-  | 'Earthfare Kitchen'
-  // Legacy categories (for backwards compatibility)
-  | 'Store Cupboard'
-  | 'Fresh Produce'
-  | 'Dairy & Alternatives'
-  | 'Bakery'
-  | 'Beverages'
-  | 'Snacks & Treats'
-  | 'Health & Beauty'
-  | 'Supplements & Wellness'
-  | 'Household & Eco'
-  | 'Chilled'
-  | 'Baby & Kids'
-  | 'Pet Care';
+  | 'Earthfare Kitchen';
 
-// Main categories displayed first, then legacy for compatibility
 const CATEGORY_OPTIONS: readonly Category[] = [
-  // === MAIN CATEGORIES ===
   'Groceries',
   'Fresh',
   'Drinks',
@@ -87,19 +71,6 @@ const CATEGORY_OPTIONS: readonly Category[] = [
   'Health',
   'Promo and Seasonal',
   'Earthfare Kitchen',
-  // === LEGACY CATEGORIES ===
-  'Store Cupboard',
-  'Fresh Produce',
-  'Dairy & Alternatives',
-  'Bakery',
-  'Beverages',
-  'Snacks & Treats',
-  'Health & Beauty',
-  'Supplements & Wellness',
-  'Household & Eco',
-  'Chilled',
-  'Baby & Kids',
-  'Pet Care',
 ] as const;
 
 // EarthFare brand colors

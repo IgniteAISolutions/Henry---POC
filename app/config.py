@@ -8,9 +8,8 @@ OPENAI_MAX_RETRIES = 3
 OPENAI_TIMEOUT = 120
 
 # Categories - EarthFare Natural Grocery
-# Main categories align with Shopify/Vector departments
+# 9 Main categories aligned with Shopify/Vector departments
 ALLOWED_CATEGORIES = {
-    # New 9 Main Categories (matching Vector/Shopify structure)
     "Groceries",
     "Fresh",
     "Drinks",
@@ -20,23 +19,6 @@ ALLOWED_CATEGORIES = {
     "Health",
     "Promo and Seasonal",
     "Earthfare Kitchen",
-
-    # Legacy categories (for backwards compatibility)
-    "Store Cupboard",
-    "Fresh Produce",
-    "Dairy & Alternatives",
-    "Bakery",
-    "Beverages",
-    "Snacks & Treats",
-    "Health & Beauty",
-    "Household & Eco",
-    "Supplements & Wellness",
-    "Frozen Foods",
-    "Chilled",
-    "Baby & Kids",
-    "Pet Care",
-    "Household",
-    "Drinks",
 }
 
 # Subcategory mapping - main category to list of subcategories
@@ -117,7 +99,6 @@ CATEGORY_SUBCATEGORIES = {
 
 # Category-specific lifestyle:technical ratios
 CATEGORY_MATRIX = {
-    # New main categories
     "Groceries": {"lifestyle": 70, "technical": 30},
     "Fresh": {"lifestyle": 80, "technical": 20},
     "Drinks": {"lifestyle": 70, "technical": 30},
@@ -127,28 +108,11 @@ CATEGORY_MATRIX = {
     "Health": {"lifestyle": 30, "technical": 70},
     "Promo and Seasonal": {"lifestyle": 80, "technical": 20},
     "Earthfare Kitchen": {"lifestyle": 85, "technical": 15},
-
-    # Legacy categories
-    "Store Cupboard": {"lifestyle": 70, "technical": 30},
-    "Fresh Produce": {"lifestyle": 80, "technical": 20},
-    "Dairy & Alternatives": {"lifestyle": 60, "technical": 40},
-    "Bakery": {"lifestyle": 80, "technical": 20},
-    "Beverages": {"lifestyle": 70, "technical": 30},
-    "Snacks & Treats": {"lifestyle": 80, "technical": 20},
-    "Health & Beauty": {"lifestyle": 50, "technical": 50},
-    "Household & Eco": {"lifestyle": 40, "technical": 60},
-    "Supplements & Wellness": {"lifestyle": 30, "technical": 70},
-    "Frozen Foods": {"lifestyle": 60, "technical": 40},
-    "Chilled": {"lifestyle": 70, "technical": 30},
-    "Baby & Kids": {"lifestyle": 60, "technical": 40},
-    "Pet Care": {"lifestyle": 50, "technical": 50},
-    "Household": {"lifestyle": 40, "technical": 60},
-    "General": {"lifestyle": 60, "technical": 40}
+    "General": {"lifestyle": 60, "technical": 40}  # Fallback
 }
 
 # Spec allow-lists per category - EarthFare focus on dietary, sourcing, certifications
 ALLOWED_SPECS = {
-    # New main categories
     "Groceries": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
     "Fresh": {"weight", "origin", "dietary", "certifications", "ingredients", "producer", "storage"},
     "Drinks": {"volume", "origin", "dietary", "certifications", "ingredients", "servings"},
@@ -158,23 +122,7 @@ ALLOWED_SPECS = {
     "Health": {"weight", "origin", "dietary", "certifications", "ingredients", "dosage", "servings"},
     "Promo and Seasonal": {"weight", "origin", "dietary", "certifications", "ingredients"},
     "Earthfare Kitchen": {"weight", "origin", "dietary", "certifications", "ingredients", "allergens"},
-
-    # Legacy categories
-    "Store Cupboard": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Fresh Produce": {"weight", "origin", "dietary", "certifications", "producer", "region"},
-    "Dairy & Alternatives": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Bakery": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Beverages": {"volume", "origin", "dietary", "certifications", "ingredients", "servings"},
-    "Snacks & Treats": {"weight", "origin", "dietary", "certifications", "ingredients", "servings"},
-    "Health & Beauty": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
-    "Household & Eco": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
-    "Supplements & Wellness": {"weight", "origin", "dietary", "certifications", "ingredients", "dosage", "servings"},
-    "Frozen Foods": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Chilled": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Baby & Kids": {"weight", "origin", "dietary", "certifications", "ingredients", "usage"},
-    "Pet Care": {"weight", "origin", "certifications", "ingredients"},
-    "Household": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
-    "General": {"weight", "origin", "dietary", "certifications", "ingredients"}
+    "General": {"weight", "origin", "dietary", "certifications", "ingredients"}  # Fallback
 }
 
 # Forbidden phrases - EarthFare specific
