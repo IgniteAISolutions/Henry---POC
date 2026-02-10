@@ -49,32 +49,28 @@ type Product = {
 type Step = 'input' | 'processing' | 'complete';
 type Tab = 'csv' | 'manual-codes' | 'website-url';
 
-// EarthFare grocery categories
+// EarthFare grocery categories - 9 Main Categories (matching Vector/Shopify)
 type Category =
-  | 'Store Cupboard'
-  | 'Fresh Produce'
-  | 'Dairy & Alternatives'
-  | 'Bakery'
-  | 'Frozen'
+  | 'Groceries'
+  | 'Fresh'
   | 'Drinks'
-  | 'Health & Beauty'
-  | 'Supplements & Wellness'
-  | 'Household'
-  | 'Baby & Kids'
-  | 'Pet Care';
+  | 'Frozen'
+  | 'Household and Non-Food'
+  | 'Body Care'
+  | 'Health'
+  | 'Promo and Seasonal'
+  | 'Earthfare Kitchen';
 
 const CATEGORY_OPTIONS: readonly Category[] = [
-  'Store Cupboard',
-  'Fresh Produce',
-  'Dairy & Alternatives',
-  'Bakery',
-  'Frozen',
+  'Groceries',
+  'Fresh',
   'Drinks',
-  'Health & Beauty',
-  'Supplements & Wellness',
-  'Household',
-  'Baby & Kids',
-  'Pet Care',
+  'Frozen',
+  'Household and Non-Food',
+  'Body Care',
+  'Health',
+  'Promo and Seasonal',
+  'Earthfare Kitchen',
 ] as const;
 
 // EarthFare brand colors

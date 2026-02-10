@@ -8,50 +8,121 @@ OPENAI_MAX_RETRIES = 3
 OPENAI_TIMEOUT = 120
 
 # Categories - EarthFare Natural Grocery
+# 9 Main categories aligned with Shopify/Vector departments
 ALLOWED_CATEGORIES = {
-    "Store Cupboard",
-    "Fresh Produce",
-    "Dairy & Alternatives",
-    "Bakery",
-    "Beverages",
-    "Snacks & Treats",
-    "Health & Beauty",
-    "Household & Eco",
-    "Supplements & Wellness",
+    "Groceries",
+    "Fresh",
+    "Drinks",
     "Frozen",
-    "Chilled"
+    "Household and Non-Food",
+    "Body Care",
+    "Health",
+    "Promo and Seasonal",
+    "Earthfare Kitchen",
+}
+
+# Subcategory mapping - main category to list of subcategories
+CATEGORY_SUBCATEGORIES = {
+    "Groceries": [
+        "Ambient Grocery",
+        "Baking & Home Cooking",
+        "Breakfast & Cereals",
+        "Condiments & Sauces",
+        "Cooking Oils & Vinegars",
+        "Herbs, Spices & Seasonings",
+        "Jams, Honey & Spreads",
+        "Pasta, Rice & Grains",
+        "Snacks & Treats",
+        "Tinned & Jarred Foods",
+        "World Foods",
+    ],
+    "Fresh": [
+        "Bakery",
+        "Cheese",
+        "Chilled Deli",
+        "Dairy & Alternatives",
+        "Fresh Fruit & Veg",
+        "Meat & Fish Alternatives",
+        "Ready Meals & Fresh Pasta",
+    ],
+    "Drinks": [
+        "Coffee & Tea",
+        "Fruit Juices & Smoothies",
+        "Soft Drinks & Cordials",
+        "Water",
+        "Wine, Beer & Spirits",
+    ],
+    "Frozen": [
+        "Frozen Desserts",
+        "Frozen Fruit & Veg",
+        "Frozen Meals & Pizza",
+        "Frozen Meat Alternatives",
+        "Ice Cream & Lollies",
+    ],
+    "Household and Non-Food": [
+        "Cleaning Products",
+        "Kitchen & Household",
+        "Laundry",
+        "Pet Food & Care",
+        "Stationery & Gifts",
+    ],
+    "Body Care": [
+        "Baby & Child",
+        "Bath & Shower",
+        "Dental Care",
+        "Deodorants",
+        "Face & Skincare",
+        "Hair Care",
+        "Hand & Body",
+        "Men's Grooming",
+        "Period Care",
+        "Sun Care",
+    ],
+    "Health": [
+        "First Aid & Medical",
+        "Supplements & Vitamins",
+        "Wellness & Natural Remedies",
+    ],
+    "Promo and Seasonal": [
+        "Christmas",
+        "Easter",
+        "Gift Sets",
+        "Seasonal Specials",
+    ],
+    "Earthfare Kitchen": [
+        "Hot Food",
+        "Sandwiches & Wraps",
+        "Salads & Sides",
+        "Cakes & Pastries",
+    ],
 }
 
 # Category-specific lifestyle:technical ratios
 CATEGORY_MATRIX = {
-    "Store Cupboard": {"lifestyle": 70, "technical": 30},
-    "Fresh Produce": {"lifestyle": 80, "technical": 20},
-    "Dairy & Alternatives": {"lifestyle": 60, "technical": 40},
-    "Bakery": {"lifestyle": 80, "technical": 20},
-    "Beverages": {"lifestyle": 70, "technical": 30},
-    "Snacks & Treats": {"lifestyle": 80, "technical": 20},
-    "Health & Beauty": {"lifestyle": 50, "technical": 50},
-    "Household & Eco": {"lifestyle": 40, "technical": 60},
-    "Supplements & Wellness": {"lifestyle": 30, "technical": 70},
+    "Groceries": {"lifestyle": 70, "technical": 30},
+    "Fresh": {"lifestyle": 80, "technical": 20},
+    "Drinks": {"lifestyle": 70, "technical": 30},
     "Frozen": {"lifestyle": 60, "technical": 40},
-    "Chilled": {"lifestyle": 70, "technical": 30},
-    "General": {"lifestyle": 60, "technical": 40}
+    "Household and Non-Food": {"lifestyle": 40, "technical": 60},
+    "Body Care": {"lifestyle": 50, "technical": 50},
+    "Health": {"lifestyle": 30, "technical": 70},
+    "Promo and Seasonal": {"lifestyle": 80, "technical": 20},
+    "Earthfare Kitchen": {"lifestyle": 85, "technical": 15},
+    "General": {"lifestyle": 60, "technical": 40}  # Fallback
 }
 
 # Spec allow-lists per category - EarthFare focus on dietary, sourcing, certifications
 ALLOWED_SPECS = {
-    "Store Cupboard": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Fresh Produce": {"weight", "origin", "dietary", "certifications", "producer", "region"},
-    "Dairy & Alternatives": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Bakery": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Beverages": {"volume", "origin", "dietary", "certifications", "ingredients", "servings"},
-    "Snacks & Treats": {"weight", "origin", "dietary", "certifications", "ingredients", "servings"},
-    "Health & Beauty": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
-    "Household & Eco": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
-    "Supplements & Wellness": {"weight", "origin", "dietary", "certifications", "ingredients", "dosage", "servings"},
+    "Groceries": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
+    "Fresh": {"weight", "origin", "dietary", "certifications", "ingredients", "producer", "storage"},
+    "Drinks": {"volume", "origin", "dietary", "certifications", "ingredients", "servings"},
     "Frozen": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "Chilled": {"weight", "origin", "dietary", "certifications", "ingredients", "storage"},
-    "General": {"weight", "origin", "dietary", "certifications", "ingredients"}
+    "Household and Non-Food": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
+    "Body Care": {"volume", "weight", "origin", "certifications", "ingredients", "usage"},
+    "Health": {"weight", "origin", "dietary", "certifications", "ingredients", "dosage", "servings"},
+    "Promo and Seasonal": {"weight", "origin", "dietary", "certifications", "ingredients"},
+    "Earthfare Kitchen": {"weight", "origin", "dietary", "certifications", "ingredients", "allergens"},
+    "General": {"weight", "origin", "dietary", "certifications", "ingredients"}  # Fallback
 }
 
 # Forbidden phrases - EarthFare specific

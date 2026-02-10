@@ -421,6 +421,46 @@ async def get_categories():
     """Get list of allowed categories"""
     return {"categories": sorted(list(ALLOWED_CATEGORIES))}
 
+
+@app.get("/api/debug/lookup-barcode/{barcode}")
+async def debug_lookup_barcode(barcode: str):
+    """
+    Debug endpoint: Test OpenFoodFacts barcode lookup directly.
+
+    This helps verify that:
+    1. Barcode is being cleaned correctly
+    2. OpenFoodFacts API is reachable
+    3. Product data is being returned correctly
+
+    Example: /api/debug/lookup-barcode/5060093992311
+    """
+    try:
+        from app.services.openfoodfacts_service import fetch_nutrition_by_barcode
+        from app.services.csv_parser import clean_barcode
+
+        # Clean the barcode first
+        cleaned = clean_barcode(barcode)
+        logger.info(f"🔍 [DEBUG] Barcode lookup: original='{barcode}', cleaned='{cleaned}'")
+
+        # Try to fetch from OpenFoodFacts
+        result = await fetch_nutrition_by_barcode(cleaned)
+
+        return {
+            "success": result is not None,
+            "original_barcode": barcode,
+            "cleaned_barcode": cleaned,
+            "openfoodfacts_data": result,
+            "has_nutrition": bool(result and any(k for k in result.keys() if k not in ['source', 'product_name', 'brands', 'barcode'])),
+            "has_ingredients": bool(result and result.get("ingredients_from_off")),
+        }
+    except Exception as e:
+        logger.error(f"Debug lookup failed: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "original_barcode": barcode,
+        }
+
 @app.post("/api/generate-brand-voice")
 async def generate_brand_voice_endpoint(
     request: BrandVoiceRequest,
