@@ -270,7 +270,7 @@ async def parse_csv_endpoint(
 
     Args:
         file: CSV file with product data
-        category: Product category (e.g., "Health Supplements", "Store Cupboard")
+        category: Product category (e.g., "Groceries", "Fresh", "Health")
         brand_url: Optional manufacturer website URL to scrape for additional data
                    (nutrition, ingredients, etc.) - useful when OpenFoodFacts lacks data
     """
@@ -617,7 +617,7 @@ async def export_shopify_endpoint(
 @app.post("/api/process-earthfare")
 async def process_earthfare_endpoint(
     file: UploadFile = File(...),
-    category: str = Form(default="Store Cupboard"),
+    category: str = Form(default="Groceries"),
     enrich: bool = Form(default=True),
     brand_url: Optional[str] = Form(default=None),
     x_api_key: Optional[str] = Header(default=None, alias="x-api-key"),
