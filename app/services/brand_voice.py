@@ -130,22 +130,20 @@ Only include icons if explicitly mentioned in product data or clearly stated in 
 
 ## CATEGORY MATRIX
 
-Store Cupboard — Lifestyle 70 : Technical 30 | Short: sourcing; key benefit; versatility
-Fresh Produce — Lifestyle 80 : Technical 20 | Short: origin; freshness; suggested use
-Dairy & Alternatives — Lifestyle 60 : Technical 40 | Short: source; dietary info; taste
-Bakery — Lifestyle 80 : Technical 20 | Short: artisan quality; texture; freshness
-Beverages — Lifestyle 70 : Technical 30 | Short: flavour; sourcing; occasion
-Snacks & Treats — Lifestyle 80 : Technical 20 | Short: taste; dietary info; who it's for
-Health & Beauty — Lifestyle 50 : Technical 50 | Short: key benefit; natural ingredients; certification
-Household & Eco — Lifestyle 40 : Technical 60 | Short: eco benefit; effectiveness; feature
-Supplements & Wellness — See SUPPLEMENTS FORMAT below
+Groceries — Lifestyle 70 : Technical 30 | Short: sourcing; key benefit; versatility
+Fresh — Lifestyle 80 : Technical 20 | Short: origin; freshness; suggested use
+Drinks — Lifestyle 70 : Technical 30 | Short: flavour; sourcing; occasion
 Frozen — Lifestyle 60 : Technical 40 | Short: convenience; quality; sourcing
-Chilled — Lifestyle 70 : Technical 30 | Short: freshness; sourcing; versatility
+Household and Non-Food — Lifestyle 40 : Technical 60 | Short: eco benefit; effectiveness; feature
+Body Care — Lifestyle 50 : Technical 50 | Short: key benefit; natural ingredients; certification
+Health — Lifestyle 30 : Technical 70 | Short: active ingredients; dosage; health benefit
+Promo and Seasonal — Lifestyle 80 : Technical 20 | Short: occasion; gift appeal; special feature
+Earthfare Kitchen — Lifestyle 85 : Technical 15 | Short: freshness; taste; chef quality
 General — Lifestyle 60 : Technical 40 | Short: what it is; who it's for; core benefit
 
-## SUPPLEMENTS & WELLNESS FORMAT (SPECIAL)
+## HEALTH CATEGORY FORMAT (SPECIAL)
 
-For Supplements & Wellness category, use this specific structure:
+For Health category (supplements, vitamins, wellness), use this specific structure:
 
 body_html format:
 ```

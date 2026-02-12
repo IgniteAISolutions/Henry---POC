@@ -142,19 +142,21 @@ def format_capacity(raw: str) -> str:
     return raw
 
 
-def categorize_product(text: str, default: str = "General") -> str:
-    """Categorize product based on text content"""
+def categorize_product(text: str, default: str = "Groceries") -> str:
+    """Categorize product based on text content - using EarthFare 9 main categories"""
     text_lower = text.lower()
 
+    # EarthFare main categories with keyword matching
     categories = {
-        "Bakeware": ["bake", "oven", "tin", "pan", "tray", "mould"],
-        "Cookware": ["pot", "pan", "skillet", "wok", "casserole", "saucepan"],
-        "Electricals": ["electric", "power", "watt", "voltage", "cord", "plug"],
-        "Knives, Cutlery": ["knife", "cutlery", "fork", "spoon", "blade"],
-        "Food & Drink": ["food", "drink", "beverage", "edible", "tea", "coffee"],
-        "Health & Beauty": ["beauty", "cosmetic", "skincare", "health", "wellness"],
-        "Home & Garden": ["garden", "furniture", "decor", "cleaning"],
-        "Dining, Drink, Living": ["dining", "table", "glass", "cup", "mug"],
+        "Fresh": ["fresh", "bakery", "cheese", "dairy", "milk", "yogurt", "fruit", "vegetable", "salad", "chilled"],
+        "Drinks": ["drink", "beverage", "tea", "coffee", "juice", "water", "cordial", "wine", "beer", "spirits"],
+        "Frozen": ["frozen", "ice cream", "freezer"],
+        "Household and Non-Food": ["cleaning", "laundry", "kitchen", "household", "pet food", "pet care", "stationery"],
+        "Body Care": ["beauty", "cosmetic", "skincare", "bath", "shower", "shampoo", "soap", "deodorant", "dental", "toothpaste"],
+        "Health": ["supplement", "vitamin", "wellness", "first aid", "medical", "remedy"],
+        "Promo and Seasonal": ["christmas", "easter", "gift", "seasonal", "holiday"],
+        "Earthfare Kitchen": ["hot food", "sandwich", "wrap", "salad bar", "pastry", "deli counter"],
+        "Groceries": ["food", "grocery", "pasta", "rice", "grain", "sauce", "oil", "spice", "jam", "honey", "snack", "biscuit", "cereal"],
     }
 
     for category, keywords in categories.items():

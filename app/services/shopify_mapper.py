@@ -342,10 +342,10 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     if not icons and product.get("icons"):
         icons = product.get("icons", [])
 
-    # Supplement disclaimer - only for Supplements & Wellness category
+    # Supplement disclaimer - only for Health category (supplements, vitamins, wellness)
     category = product.get("category", "")
     supplement_disclaimer = ""
-    if "supplement" in category.lower() or "wellness" in category.lower():
+    if category.lower() == "health" or "supplement" in category.lower() or "wellness" in category.lower():
         supplement_disclaimer = (
             "Important: If you are taking any medication, are pregnant or breastfeeding, "
             "or have an underlying health condition, please consult your doctor or a qualified "
