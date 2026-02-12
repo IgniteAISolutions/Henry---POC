@@ -342,6 +342,13 @@ const CategorySelect: React.FC<{ id: string; value?: string; suggested?: string;
   </div>
 );
 
+// Helper to count CSV rows
+async function countCSVRows(file: File): Promise<number> {
+  const text = await file.text();
+  const lines = text.split('\n').filter(line => line.trim().length > 0);
+  return Math.max(0, lines.length - 1); // Subtract header row
+}
+
 const UniversalUploader: React.FC = () => {
   const [step, setStep] = useState<Step>('input');
   const [activeTab, setActiveTab] = useState<Tab>('csv');
@@ -357,6 +364,11 @@ const UniversalUploader: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [brandUrl, setBrandUrl] = useState('');
 
+  // Progress tracking state
+  const [totalItems, setTotalItems] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [processingStartTime, setProcessingStartTime] = useState<number | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,10 +376,25 @@ const UniversalUploader: React.FC = () => {
     if (file) setSelectedFile(file);
   };
 
+  // Timer effect for elapsed time during processing
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    if (step === 'processing' && processingStartTime) {
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - processingStartTime) / 1000));
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, processingStartTime]);
+
   const handleProcess = async () => {
     try {
       setStep('processing');
       setStatusMsg('Starting...');
+      setElapsedTime(0);
+      setProcessingStartTime(Date.now());
 
       let products: Product[] = [];
 
@@ -375,6 +402,12 @@ const UniversalUploader: React.FC = () => {
         case 'csv':
           if (!selectedFile) throw new Error('No file selected');
           if (!preSelectedCategory) throw new Error('Please select a category');
+
+          // Count rows for progress indicator
+          const rowCount = await countCSVRows(selectedFile);
+          setTotalItems(rowCount);
+          setStatusMsg(`Processing ${rowCount} products...`);
+
           products = await processCSV(selectedFile, preSelectedCategory, brandUrl, setStatusMsg);
           break;
 
@@ -454,6 +487,9 @@ const UniversalUploader: React.FC = () => {
     setSearchEAN('');
     setSearchText('');
     setBrandUrl('');
+    setTotalItems(0);
+    setElapsedTime(0);
+    setProcessingStartTime(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
@@ -1066,28 +1102,87 @@ const UniversalUploader: React.FC = () => {
       {/* PROCESSING STEP - Show loading */}
       {step === 'processing' && (
         <div style={{ textAlign: 'center', padding: '3rem' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🌿</div>
-          <p style={{ fontSize: '1.2rem', color: COLORS.text, fontWeight: 500 }}>{statusMsg || 'Processing...'}</p>
-          <p style={{ fontSize: '0.9rem', color: COLORS.textLight, marginTop: '0.5rem' }}>
-            This may take a few minutes for large files
-          </p>
+          {/* Animated spinner */}
           <div style={{
-            marginTop: '2rem',
-            width: '200px',
-            height: '4px',
-            background: COLORS.border,
-            borderRadius: '2px',
-            margin: '2rem auto',
-            overflow: 'hidden'
+            width: '80px',
+            height: '80px',
+            margin: '0 auto 1.5rem',
+            position: 'relative',
           }}>
             <div style={{
-              width: '50%',
+              position: 'absolute',
+              width: '100%',
               height: '100%',
-              background: COLORS.primary,
-              borderRadius: '2px',
-              animation: 'pulse 1.5s ease-in-out infinite',
+              border: '4px solid ' + COLORS.border,
+              borderTopColor: COLORS.primary,
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite',
+            }} />
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              fontSize: '1.8rem',
+            }}>🌿</div>
+          </div>
+
+          {/* Status message */}
+          <p style={{ fontSize: '1.3rem', color: COLORS.text, fontWeight: 600, marginBottom: '0.5rem' }}>
+            {statusMsg || 'Processing...'}
+          </p>
+
+          {/* Item count */}
+          {totalItems > 0 && (
+            <p style={{ fontSize: '1.1rem', color: COLORS.primary, fontWeight: 500, marginBottom: '0.5rem' }}>
+              {totalItems} product{totalItems !== 1 ? 's' : ''} in queue
+            </p>
+          )}
+
+          {/* Elapsed time */}
+          <p style={{ fontSize: '0.95rem', color: COLORS.textLight, marginBottom: '1.5rem' }}>
+            ⏱️ Elapsed: {Math.floor(elapsedTime / 60)}:{(elapsedTime % 60).toString().padStart(2, '0')}
+          </p>
+
+          {/* Progress bar */}
+          <div style={{
+            width: '280px',
+            height: '8px',
+            background: COLORS.border,
+            borderRadius: '4px',
+            margin: '0 auto 1rem',
+            overflow: 'hidden',
+            position: 'relative',
+          }}>
+            <div style={{
+              position: 'absolute',
+              width: '40%',
+              height: '100%',
+              background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.primaryLight}, ${COLORS.primary})`,
+              borderRadius: '4px',
+              animation: 'progressSlide 1.5s ease-in-out infinite',
             }} />
           </div>
+
+          {/* Helpful info */}
+          <p style={{ fontSize: '0.85rem', color: COLORS.textLight, marginTop: '1rem' }}>
+            {totalItems > 20
+              ? '⚡ Large file detected - this may take 2-5 minutes'
+              : totalItems > 0
+                ? '✨ Enriching products with nutrition data...'
+                : 'Connecting to servers...'}
+          </p>
+
+          {/* Add keyframe animations */}
+          <style>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+            @keyframes progressSlide {
+              0% { left: -40%; }
+              100% { left: 100%; }
+            }
+          `}</style>
         </div>
       )}
 
