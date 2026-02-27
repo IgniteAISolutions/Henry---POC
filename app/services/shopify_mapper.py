@@ -5,7 +5,9 @@ Maps generated product content to Shopify CSV format with metafields
 IMPORTANT: Matrixify/Shopify requirements:
 - Rich text metafields MUST be valid Shopify rich-text JSON
 - List metafields MUST be proper JSON arrays
-- ID column removed for new product imports
+- Icons use metaobject references (icon_library.*)
+- Body HTML left empty (Vector EPOS overwrites)
+- Generated descriptions go to secondary_product_description
 """
 import json
 import re
@@ -15,6 +17,31 @@ from typing import Dict, List, Any, Optional, Union
 from .csv_parser import clean_barcode
 
 logger = logging.getLogger(__name__)
+
+# Earthfare base URL for product URLs
+EARTHFARE_BASE_URL = "https://www.earthfare.co.uk"
+
+# Icon name to metaobject reference mapping
+# These must match the icon_library metaobjects in Shopify
+ICON_METAOBJECT_MAP = {
+    "Palm Oil Free": "icon_library.palm-oil-free",
+    "Organic": "icon_library.organic",
+    "Vegan": "icon_library.vegan",
+    "Fairtrade": "icon_library.fair-trade",
+    "Fair Trade": "icon_library.fair-trade",
+    "Gluten Free": "icon_library.gluten-free",
+    "Sugar Free": "icon_library.sugar-free",
+    "Dairy Free": "icon_library.dairy-free",
+    "Seed Oil Free": "icon_library.seed-oil-free",
+    "Nut Free": "icon_library.nut-free",
+    "Low Waste": "icon_library.low-waste",
+    "Compostable": "icon_library.compostable",
+    "Local": "icon_library.local",
+    "Vegetarian": "icon_library.vegetarian",
+    "Raw": "icon_library.raw",
+    "Keto": "icon_library.keto",
+    "Paleo": "icon_library.paleo",
+}
 
 
 def slugify(text: str) -> str:
@@ -264,6 +291,70 @@ def format_nutrition_for_metafield(nutrition: Any) -> List[str]:
     return []
 
 
+def format_icons_metaobject(icons: List[str]) -> str:
+    """
+    Format icons as Shopify metaobject references for Matrixify import.
+
+    Matrixify format for list.metaobject_reference is comma-separated
+    metaobject references, NOT a JSON array.
+
+    e.g., "icon_library.vegan, icon_library.organic"
+
+    Args:
+        icons: List of icon name strings (e.g., ["Vegan", "Organic"])
+    Returns:
+        Comma-separated metaobject reference string
+    """
+    if not icons:
+        return ""
+
+    refs = []
+    for icon in icons:
+        icon_clean = str(icon).strip()
+        if not icon_clean:
+            continue
+
+        ref = ICON_METAOBJECT_MAP.get(icon_clean)
+        if ref:
+            refs.append(ref)
+        else:
+            # Fallback: generate a slug-style reference
+            slug = icon_clean.lower().replace(" ", "-")
+            slug = re.sub(r'[^a-z0-9-]', '', slug)
+            ref = f"icon_library.{slug}"
+            refs.append(ref)
+            logger.warning(f"Unknown icon '{icon_clean}', using fallback ref: {ref}")
+
+    if not refs:
+        return ""
+
+    return ", ".join(refs)
+
+
+def format_nutrition_single_string(nutrition: Any) -> str:
+    """
+    Format nutrition as a single-element JSON array with one comma-separated string.
+
+    Matrixify template format:
+    ["Energy (kJ): 2430kJ, Energy (kcal): 586kcal, Fat: 43.2g, of which Saturates: 26.2g, ..."]
+
+    Args:
+        nutrition: Nutrition data in various formats (dict, str, list)
+    Returns:
+        JSON array string with single concatenated element
+    """
+    items = format_nutrition_for_metafield(nutrition)
+    if not items:
+        return ""
+
+    # Join all nutrition items into one comma-separated string
+    combined = ", ".join(items)
+
+    # Wrap in single-element array
+    result = json.dumps([combined], ensure_ascii=False)
+    return result
+
+
 def format_body_html(text: str) -> str:
     """
     Ensure body HTML is properly wrapped in <p> tags for Shopify
@@ -294,17 +385,23 @@ def format_body_html(text: str) -> str:
 
 def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     """
-    Map generated product content to Shopify CSV format
+    Map generated product content to Matrixify-compatible Shopify CSV format
+
+    Key differences from previous format:
+    - Body HTML is left EMPTY (Vector EPOS overwrites it)
+    - Generated description goes to secondary_product_description
+    - Icons use metaobject references, not string lists
+    - Includes SEO title_tag and description_tag
+    - Includes URL column
+    - Includes key_usps, search_boost, related/complementary products (empty for now)
+
     Args:
         product: Product dict with generated descriptions
     Returns:
-        Dict with Shopify CSV column names and values
+        Dict with Matrixify CSV column names and values
     """
     name = product.get("name", "Unknown")
     logger.info(f"🗺️ [MAPPER] Mapping product: {name}")
-    logger.info(f"🗺️ [MAPPER] Product keys: {list(product.keys())}")
-    logger.info(f"🗺️ [MAPPER] Has nutrition: {bool(product.get('nutrition'))}")
-    logger.info(f"🗺️ [MAPPER] Has ingredients: {bool(product.get('ingredients'))}")
 
     # Get descriptions from product
     descriptions = product.get("descriptions", {})
@@ -315,11 +412,20 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     # Get brand - prefer generated, fallback to product data
     brand = descriptions.get("brand", "") or product.get("brand", "")
 
-    # Get body HTML - ensure it's wrapped in <p> tags
+    # Get body HTML -- this goes to secondary_product_description, NOT Body HTML
     body_html_raw = descriptions.get("body_html", "") or descriptions.get("longDescription", "")
-    body_html = format_body_html(body_html_raw)
+    secondary_description = format_body_html(body_html_raw)
 
-    # Get dietary preferences - prefer generated, fallback to normalized
+    # SEO fields
+    meta_description = descriptions.get("meta_description", "") or descriptions.get("metaDescription", "")
+    seo_title = title  # title_tag is typically the product title
+
+    # Generate product URL from handle
+    shopify_handle = product.get("shopify_handle", "")
+    handle = shopify_handle if shopify_handle else slugify(title)
+    product_url = f"{EARTHFARE_BASE_URL}/products/{handle}" if handle else ""
+
+    # Get dietary preferences
     dietary = descriptions.get("dietary_preferences", [])
     if not dietary and product.get("dietary"):
         dietary = product.get("dietary", [])
@@ -332,62 +438,58 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     if isinstance(ingredients, list):
         ingredients = ", ".join(ingredients)
 
-    # Get nutrition info if available - handle dict, string, or list
+    # Get nutrition info - use new single-string format
     nutrition_raw = product.get("nutrition") or product.get("nutrition_shopify", [])
-    nutrition = format_nutrition_for_metafield(nutrition_raw)
 
-    # Get Earthfare icons (Palm Oil Free, Organic, Vegan, Fairtrade)
-    # Prefer icons from descriptions (merged from CSV + GPT), fallback to product.icons
+    # Get Earthfare icons
     icons = descriptions.get("icons", [])
     if not icons and product.get("icons"):
         icons = product.get("icons", [])
 
-    # Supplement disclaimer - only for Health category (supplements, vitamins, wellness)
-    category = product.get("category", "")
-    supplement_disclaimer = ""
-    if category.lower() == "health" or "supplement" in category.lower() or "wellness" in category.lower():
-        supplement_disclaimer = (
-            "Important: If you are taking any medication, are pregnant or breastfeeding, "
-            "or have an underlying health condition, please consult your doctor or a qualified "
-            "healthcare professional before taking this supplement. Always read the leaflet/product "
-            "before use and for the most up-to-date ingredients lists and directions for use."
-        )
+    # Get key USPs from short_description (benefit fragments split on <br>)
+    key_usps = []
+    short_desc = descriptions.get("short_description", "") or descriptions.get("shortDescription", "")
+    if short_desc:
+        # short_description is "Benefit 1<br>Benefit 2<br>Benefit 3"
+        # Remove any wrapping <p> tags first
+        short_desc_clean = re.sub(r'</?p>', '', short_desc)
+        usps = [u.strip() for u in short_desc_clean.split("<br>") if u.strip()]
+        # Also try <br/> and <br />
+        if len(usps) <= 1:
+            usps = [u.strip() for u in re.split(r'<br\s*/?>', short_desc_clean) if u.strip()]
+        key_usps = usps
 
-    # Build Shopify CSV row
-    # ID column: populated from inventory match for updates, empty for new products
+    # Build Shopify CSV row (Matrixify format)
     shopify_id = product.get("shopify_id", "")
-    shopify_handle = product.get("shopify_handle", "")
-
-    # Use existing handle if matched, otherwise generate new one
-    handle = shopify_handle if shopify_handle else slugify(title)
-
-    # Clean barcode to prevent scientific notation issues in export
-    raw_barcode = product.get("barcode", "") or product.get("ean", "")
-    cleaned_barcode = clean_barcode(raw_barcode) if raw_barcode else ""
 
     result = {
-        "ID": shopify_id,  # Empty for new products, Shopify ID for updates
-        "Handle": handle,
+        "ID": shopify_id,
         "Title": title,
-        "Body HTML": body_html,
-        "Vendor": "Earthfare Supermarket",
+        "Body HTML": "",  # LEFT EMPTY - Vector EPOS overwrites this
         "Type": product.get("category", ""),
-        "Variant Barcode": cleaned_barcode,
+        "URL": product_url,
+        "Metafield: title_tag [string]": seo_title,
+        "Metafield: description_tag [string]": meta_description,
+        "Metafield: custom.key_usps [list.single_line_text_field]": format_list_metafield(key_usps),
+        "Metafield: shopify--discovery--product_search_boost.queries [list.single_line_text_field]": "",  # Empty - manual or future enhancement
+        "Metafield: shopify--discovery--product_recommendation.related_products [list.product_reference]": "",  # Empty - manual curation
+        "Metafield: shopify--discovery--product_recommendation.related_products_display [single_line_text_field]": "",  # Empty
+        "Metafield: shopify--discovery--product_recommendation.complementary_products [list.product_reference]": "",  # Empty - manual curation
         "Metafield: custom.allergens [list.single_line_text_field]": format_list_metafield(allergens),
         "Metafield: pdp.ingredients [rich_text_field]": format_rich_text_metafield(ingredients),
-        "Metafield: pdp.nutrition [list.single_line_text_field]": format_list_metafield(nutrition),
+        "Metafield: pdp.nutrition [list.single_line_text_field]": format_nutrition_single_string(nutrition_raw),
+        "Metafield: custom.icons [list.metaobject_reference]": format_icons_metaobject(icons),
         "Metafield: custom.dietary_preferences [list.single_line_text_field]": format_list_metafield(dietary),
-        "Metafield: custom.icons [list.single_line_text_field]": format_list_metafield(icons),
         "Metafield: custom.brand [single_line_text_field]": brand,
-        "Metafield: custom.supplement_disclaimer [multi_line_text_field]": supplement_disclaimer
+        "Metafield: custom.secondary_product_description [multi_line_text_field]": secondary_description,
     }
 
     # Log output for debugging
     logger.info(f"🗺️ [MAPPER] Output for {name}:")
-    logger.info(f"   - Barcode: '{cleaned_barcode}'")
-    logger.info(f"   - Ingredients metafield empty: {not result['Metafield: pdp.ingredients [rich_text_field]']}")
-    logger.info(f"   - Nutrition metafield empty: {not result['Metafield: pdp.nutrition [list.single_line_text_field]']}")
-    logger.info(f"   - Allergens metafield: {result['Metafield: custom.allergens [list.single_line_text_field]'][:50] if result['Metafield: custom.allergens [list.single_line_text_field]'] else 'empty'}")
+    logger.info(f"   - URL: '{product_url}'")
+    logger.info(f"   - Body HTML: (empty per Matrixify template)")
+    logger.info(f"   - Secondary description length: {len(secondary_description)}")
+    logger.info(f"   - Icons metaobject: {result['Metafield: custom.icons [list.metaobject_reference]'][:80] if result['Metafield: custom.icons [list.metaobject_reference]'] else 'empty'}")
 
     return result
 
@@ -420,21 +522,26 @@ def map_products_to_shopify(
 
 
 # Shopify CSV column headers (Matrixify format)
-# ID column included but empty for new products - Shopify assigns IDs on import
-# For updates, export from Shopify admin to get existing IDs
+# Must match the gold-standard Matrixify template exactly
+# Body HTML left empty (Vector EPOS overwrites), descriptions go to secondary_product_description
 SHOPIFY_CSV_HEADERS = [
     "ID",
-    "Handle",
     "Title",
     "Body HTML",
-    "Vendor",
     "Type",
-    "Variant Barcode",
+    "URL",
+    "Metafield: title_tag [string]",
+    "Metafield: description_tag [string]",
+    "Metafield: custom.key_usps [list.single_line_text_field]",
+    "Metafield: shopify--discovery--product_search_boost.queries [list.single_line_text_field]",
+    "Metafield: shopify--discovery--product_recommendation.related_products [list.product_reference]",
+    "Metafield: shopify--discovery--product_recommendation.related_products_display [single_line_text_field]",
+    "Metafield: shopify--discovery--product_recommendation.complementary_products [list.product_reference]",
     "Metafield: custom.allergens [list.single_line_text_field]",
     "Metafield: pdp.ingredients [rich_text_field]",
     "Metafield: pdp.nutrition [list.single_line_text_field]",
+    "Metafield: custom.icons [list.metaobject_reference]",
     "Metafield: custom.dietary_preferences [list.single_line_text_field]",
-    "Metafield: custom.icons [list.single_line_text_field]",
     "Metafield: custom.brand [single_line_text_field]",
-    "Metafield: custom.supplement_disclaimer [multi_line_text_field]"
+    "Metafield: custom.secondary_product_description [multi_line_text_field]",
 ]

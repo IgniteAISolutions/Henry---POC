@@ -149,10 +149,6 @@ def export_to_shopify(products: List[Dict[str, Any]]) -> bytes:
     # Create DataFrame with ordered columns
     df = pd.DataFrame(rows, columns=SHOPIFY_CSV_HEADERS)
 
-    # Ensure barcode column is string type to prevent scientific notation
-    if 'Variant Barcode' in df.columns:
-        df['Variant Barcode'] = df['Variant Barcode'].astype(str)
-
     # Export to CSV with UTF-8 BOM
     csv_buffer = io.StringIO()
     df.to_csv(
