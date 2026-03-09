@@ -128,10 +128,15 @@ async def enrich_product(product: Dict[str, Any], scrape: bool = True) -> Dict[s
                 logger.info(f"✅ [ENRICH] Got nutrition from OpenFoodFacts: {list(nutrition.keys())}")
 
                 # Also get ingredients and allergens from OFF if available
+                # Skip non-English ingredients to avoid French/Dutch text in exports
                 if off_data.get("ingredients_from_off") and not product.get("ingredients"):
-                    product["ingredients"] = off_data["ingredients_from_off"]
-                    product["ingredients_source"] = "openfoodfacts"
-                    logger.info(f"✅ [ENRICH] Got ingredients from OpenFoodFacts (length: {len(product['ingredients'])})")
+                    ingredients_lang = off_data.get("ingredients_language", "")
+                    if ingredients_lang and ingredients_lang not in ("en", "en-GB", ""):
+                        logger.warning(f"⚠️ [ENRICH] Skipping non-English ingredients (lang={ingredients_lang}) for '{ean}'")
+                    else:
+                        product["ingredients"] = off_data["ingredients_from_off"]
+                        product["ingredients_source"] = "openfoodfacts"
+                        logger.info(f"✅ [ENRICH] Got ingredients from OpenFoodFacts (length: {len(product['ingredients'])})")
 
                 if off_data.get("allergens_from_off") and not product.get("allergens"):
                     product["allergens"] = off_data["allergens_from_off"]

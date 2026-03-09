@@ -127,15 +127,27 @@ async def fetch_nutrition_by_barcode(barcode: str) -> Optional[Dict[str, Any]]:
                 nutrition["brands"] = product.get("brands", "")
                 nutrition["barcode"] = barcode
 
-                # Add ingredients if available - prefer English, fallback to original
+                # Add ingredients if available - prefer English, try other
+                # English-language fields, then flag non-English as unreliable
                 ingredients_en = product.get("ingredients_text_en")
+                ingredients_en_gb = product.get("ingredients_text_en-GB")
                 ingredients_orig = product.get("ingredients_text")
+                lang = product.get("lang", "")
+
                 if ingredients_en:
                     nutrition["ingredients_from_off"] = ingredients_en
                     logger.info(f"✅ [OFF] Using English ingredients")
-                elif ingredients_orig:
+                elif ingredients_en_gb:
+                    nutrition["ingredients_from_off"] = ingredients_en_gb
+                    logger.info(f"✅ [OFF] Using en-GB ingredients")
+                elif ingredients_orig and lang in ("en", "en-GB", ""):
                     nutrition["ingredients_from_off"] = ingredients_orig
-                    logger.info(f"⚠️ [OFF] English ingredients not available, using original language")
+                    logger.info(f"✅ [OFF] Using original ingredients (lang={lang})")
+                elif ingredients_orig:
+                    # Non-English product - flag it so downstream can decide
+                    nutrition["ingredients_from_off"] = ingredients_orig
+                    nutrition["ingredients_language"] = lang
+                    logger.warning(f"⚠️ [OFF] Ingredients may be in '{lang}' - not English")
 
                 # Add allergens if available
                 allergens_tags = product.get("allergens_tags", [])
