@@ -23,6 +23,18 @@ EARTHFARE_BASE_URL = "https://www.earthfare.co.uk"
 
 # Icon name to metaobject reference mapping
 # These must match the icon_library metaobjects in Shopify
+# Valid dietary preferences that Shopify accepts
+# Any values not in this set will be filtered out before export
+VALID_SHOPIFY_DIETARY = {
+    "Organic",
+    "Vegan",
+    "Gluten Free",
+    "Dairy Free",
+    "Seed Oil Free",
+    "Sugar Free",
+    "Nut Free",
+}
+
 ICON_METAOBJECT_MAP = {
     "Palm Oil Free": "icon_library.palm-oil-free",
     "Organic": "icon_library.organic",
@@ -425,10 +437,14 @@ def map_to_shopify_csv(product: Dict[str, Any]) -> Dict[str, str]:
     handle = shopify_handle if shopify_handle else slugify(title)
     product_url = f"{EARTHFARE_BASE_URL}/products/{handle}" if handle else ""
 
-    # Get dietary preferences
-    dietary = descriptions.get("dietary_preferences", [])
-    if not dietary and product.get("dietary"):
-        dietary = product.get("dietary", [])
+    # Get dietary preferences - filter to only valid Shopify values
+    dietary_raw = descriptions.get("dietary_preferences", [])
+    if not dietary_raw and product.get("dietary"):
+        dietary_raw = product.get("dietary", [])
+    dietary = [d for d in dietary_raw if d in VALID_SHOPIFY_DIETARY]
+    if len(dietary) < len(dietary_raw):
+        filtered_out = [d for d in dietary_raw if d not in VALID_SHOPIFY_DIETARY]
+        logger.info(f"🔍 [MAPPER] Filtered out invalid dietary values: {filtered_out}")
 
     # Get allergens
     allergens = product.get("allergens", [])

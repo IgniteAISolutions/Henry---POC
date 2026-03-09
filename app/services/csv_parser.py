@@ -275,10 +275,14 @@ def parse_csv_row(row: Dict[str, str], category: str) -> Dict[str, Any]:
         logger.warning(f"No product name found in row, SKU: {sku}")
         return None
 
+    # Extract Shopify product ID if present (for updates via Matrixify)
+    shopify_id = extract_csv_field(row, ['ID', 'id', 'Shopify ID', 'shopify_id', 'Product ID', 'product_id'])
+
     product = {
         "name": name.strip(),
         "category": category,
         "sku": sku.strip() if sku else "",
+        "shopify_id": shopify_id,
         "barcode": clean_barcode(extract_csv_field(row, ['barcode', 'Barcode', 'ean', 'EAN', 'upc', 'gtin', 'Variant Barcode'])),
         "brand": extract_csv_field(row, ['brand', 'Brand', 'manufacturer']),
         "range": extract_csv_field(row, ['range', 'Range', 'collection', 'series']),
