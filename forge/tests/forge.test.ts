@@ -13,6 +13,8 @@ import { buildUserMessage } from '../src/lib/voice';
 import { harvestEvidence, expandEndYear, extractEvidence } from '../src/lib/scrape';
 import { sanitise, sanitiseText, findBanned } from '../src/lib/writer';
 import { runPipeline } from '../src/lib/pipeline';
+import { rank, searchByPartNumber } from '../src/lib/search';
+import { sourceTier } from '../src/lib/sources';
 import { loadParts } from '../src/lib/data';
 
 const PN = '99610722553';
@@ -176,22 +178,81 @@ describe('writer: sanitiser keeps good copy and removes unsafe HTML', () => {
   });
 });
 
+describe('source policy: eBay never counts, authorised dealers win', () => {
+  test('eBay is blocked on every country domain and never counted', () => {
+    for (const d of ['ebay.com', 'www.ebay.co.uk', 'ebay.de']) assert.equal(sourceTier(d), 'blocked');
+    const v = verify([ev('ebay.com', { material: 'Steel' }), ev('ebay.co.uk', { material: 'Steel' }), ev('a.com', { material: 'Steel' })], PN);
+    assert.equal(v.sourcesChecked, 1);
+    assert.equal(v.accepted.attributes[0].confidence, 'single-source');
+  });
+
+  test('search results drop eBay and put authorised dealers first', () => {
+    const hit = (domain: string) => ({ url: `https://${domain}/x`, domain, title: '', snippet: '' });
+    const ranked = rank([hit('random.com'), hit('ebay.com'), hit('pelicanparts.com'), hit('parts.byersporsche.com')]);
+    assert.deepEqual(ranked.map((h) => h.domain), ['parts.byersporsche.com', 'pelicanparts.com', 'random.com']);
+  });
+
+  test('with no search key, dealer sites are queried first', async () => {
+    const { hits, provider } = await searchByPartNumber(PN);
+    assert.equal(provider, 'direct');
+    assert.equal(sourceTier(hits[0].domain), 'authorised');
+    assert.ok(!hits.some((h) => sourceTier(h.domain) === 'blocked'));
+  });
+
+  test('agreeing dealers overrule a retailer, and the overrule is recorded', () => {
+    const v = verify([
+      ev('porscheatlantaperimeterparts.com', { position: 'Front' }),
+      ev('byersporsche.com', { position: 'Front' }),
+      ev('rosepassion.com', { position: 'Rear left' }),
+    ], PN);
+    assert.equal(v.conflicts.length, 0);
+    assert.equal(v.accepted.attributes[0].value, 'Front');
+    assert.ok(v.accepted.attributes[0].authorised);
+    assert.equal(v.overrides[0].overruled[0].value, 'Rear left');
+    assert.ok(!buildUserMessage(part, v).includes('Rear left'));
+  });
+
+  test('dealers that disagree with each other settle nothing', () => {
+    const v = verify([ev('sunsetporscheparts.com', { material: 'Steel' }), ev('byersporsche.com', { material: 'Aluminium' })], PN);
+    assert.equal(v.conflicts.length, 1);
+    assert.equal(v.accepted.attributes.length, 0);
+  });
+
+  test('a dealer-backed year range wins a fitment-detail disagreement', () => {
+    const v = verify([
+      ev('sunsetporscheparts.com', { fitment: [{ model: '996', years: '1997-01' }] }),
+      ev('rosepassion.com', { fitment: [{ model: '996', years: '1998' }] }),
+    ], PN);
+    assert.deepEqual(v.accepted.fitment.map((f) => f.vehicle), ['996 1997-01']);
+    assert.equal(v.overrides[0].kind, 'fitment-detail');
+  });
+});
+
 describe('recorded demo run', () => {
   test('the 10 parts land where the demo script says they do', async () => {
     const parts = await loadParts();
     const got: Record<string, string> = {};
     for (const p of parts) got[p.partNumber] = (await runPipeline(p, { mode: 'recorded' })).verification.verdict;
     assert.equal(got['94411021401'], 'verified');
-    assert.equal(got['99750396302GRV'], 'conflicting');
+    assert.equal(got['92863210100'], 'verified');
+    assert.equal(got['99750396302GRV'], 'verified');
     assert.equal(got['V04015005BT'], 'unconfirmed');
     assert.equal(got['9P1601147K8Z8'], 'unconfirmed');
     assert.equal(Object.values(got).filter((v) => v !== 'unconfirmed').length, 8);
   });
 
-  test('the door sill position dispute stays out of the writer payload', async () => {
+  test('no eBay evidence remains in the recorded fixtures', async () => {
+    const { loadFixtures } = await import('../src/lib/data');
+    const all = Object.values(await loadFixtures()).flat();
+    assert.ok(!all.some((e) => sourceTier(e.domain) === 'blocked'));
+  });
+
+  test('door sill: the dealers\' Front wins, Rear left never reaches the writer', async () => {
     const p = (await loadParts()).find((x) => x.partNumber === '99750396302GRV')!;
     const r = await runPipeline(p, { mode: 'recorded' });
     const msg = buildUserMessage(p, r.verification);
-    assert.ok(!msg.includes('Rear left') && !msg.includes('"Front"'));
+    assert.ok(msg.includes('"Front"'));
+    assert.ok(!msg.includes('Rear left'));
+    assert.equal(r.verification.overrides[0].field, 'Position');
   });
 });
