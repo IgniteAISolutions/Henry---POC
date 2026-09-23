@@ -1,0 +1,184 @@
+[
+  {
+    "id": "p01",
+    "partNumber": "92863210100",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Glove Box Light",
+    "category": "Interior Lighting",
+    "summary": "A replacement lamp that lights the glove compartment when it is opened.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "928"
+      },
+      {
+        "model": "964"
+      },
+      {
+        "model": "996"
+      },
+      {
+        "model": "986 Boxster"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/92863210100/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p02",
+    "partNumber": "99761209005",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Battery Cable",
+    "category": "Electrical",
+    "summary": "A battery cable forming part of the battery and starter wiring on the 997.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "997"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/99761209005/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p03",
+    "partNumber": "99761860702",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Engine Control Unit (DME)",
+    "category": "Engine Management",
+    "summary": "The engine control unit that manages fuelling, ignition and engine running.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "997.2"
+      },
+      {
+        "model": "987.2 Boxster S"
+      },
+      {
+        "model": "987.2 Cayman S"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/99761860702/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p04",
+    "partNumber": "96410601401",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Engine Cover, Rear",
+    "category": "Engine",
+    "summary": "A cover panel fitted to the rear of the engine compartment on the 964.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "964"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/96410601401/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p05",
+    "partNumber": "94411021401",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Idle Control Valve Hose, Rear",
+    "category": "Fuel & Air Intake",
+    "summary": "A rubber hose that connects the idle control valve into the intake system.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "924S"
+      },
+      {
+        "model": "944"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/94411021401/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p06",
+    "partNumber": "9P1601147K8Z8",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Wheel Centre Cap",
+    "category": "Wheels",
+    "summary": "A centre cap that covers the hub in the middle of an alloy wheel.",
+    "qualityTier": "Genuine",
+    "sourceUrl": "https://www.design911.co.uk/parts/9P1601147K8Z8/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p07",
+    "partNumber": "99750396302GRV",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Door Sill Outer Panel",
+    "category": "Body Panels",
+    "summary": "An outer door sill panel, supplied in primer, for the 997.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "997"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/99750396302GRV/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p08",
+    "partNumber": "9645520550005T",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Upper Dashboard Trim",
+    "category": "Interior Trim",
+    "summary": "The upper trim panel that covers the top of the dashboard.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "964"
+      },
+      {
+        "model": "993"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/9645520550005T/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p09",
+    "partNumber": "90150150300",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Battery Box, Left",
+    "category": "Body Panels",
+    "summary": "A sheet metal battery box for the front of the early 911.",
+    "qualityTier": "Genuine",
+    "fitment": [
+      {
+        "model": "911",
+        "years": "1965-73"
+      }
+    ],
+    "sourceUrl": "https://www.design911.co.uk/parts/90150150300/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  },
+  {
+    "id": "p10",
+    "partNumber": "V04015005BT",
+    "manufacturer": "Porsche (Genuine)",
+    "name": "Bracket, Right",
+    "category": "Brakes",
+    "summary": "A right-hand bracket used when fitting a front brake hose.",
+    "qualityTier": "Genuine",
+    "sourceUrl": "https://www.design911.co.uk/parts/V04015005BT/",
+    "descriptionStatus": "missing",
+    "statusNote": "Inferred: the Design 911 page title is a bare part number. Confirm with npm run harvest."
+  }
+]
