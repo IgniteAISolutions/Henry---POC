@@ -66,6 +66,37 @@ export interface EvidenceFields {
 
 export type VerificationVerdict = 'verified' | 'probable' | 'unconfirmed' | 'conflicting';
 
+export type FactConfidence = 'corroborated' | 'single-source';
+
+/** A fact that survived verification, with the independent sources behind it. */
+export interface AcceptedFact {
+  label: string;
+  value: string;
+  confidence: FactConfidence;
+  sources: string[];
+}
+
+export interface AcceptedFitment {
+  vehicle: string;
+  confidence: FactConfidence;
+  sources: string[];
+}
+
+export interface AcceptedReference {
+  ref: string;
+  confidence: FactConfidence;
+  sources: string[];
+}
+
+/** Everything the writer is allowed to see. Built by verify(), and nothing
+ *  else feeds the prompt, so a disputed fact has exactly one place to be
+ *  stopped. */
+export interface AcceptedFacts {
+  attributes: AcceptedFact[];
+  fitment: AcceptedFitment[];
+  oeReferences: AcceptedReference[];
+}
+
 export interface Verification {
   verdict: VerificationVerdict;
   /** 0-100. Confidence that the enriched facts describe THIS part number. */
@@ -76,9 +107,17 @@ export interface Verification {
   corroborated: string[];
   /** Facts that appear in exactly one source. Usable, but flagged. */
   singleSource: string[];
-  /** Sources that disagree. The copywriter is told to omit these entirely. */
-  conflicts: Array<{ field: string; values: Array<{ value: string; domain: string }> }>;
+  /** Sources that disagree. Removed before the writer sees anything.
+   *  kind 'attribute' disputes identity-level facts and drives the
+   *  'conflicting' verdict; kind 'fitment-detail' is a disagreement about an
+   *  engine or year range for a model both sources agree on. */
+  conflicts: Array<{
+    field: string;
+    kind: 'attribute' | 'fitment-detail';
+    values: Array<{ value: string; domain: string }>;
+  }>;
   notes: string[];
+  accepted: AcceptedFacts;
 }
 
 export interface GeneratedDescription {
@@ -92,6 +131,8 @@ export interface GeneratedDescription {
   factsUsed: Array<{ fact: string; source: string }>;
   /** Anything the writer deliberately left out, and why. */
   omitted: string[];
+  /** House-style problems that survived one corrective rewrite. */
+  warnings: string[];
   model: string;
   generatedAt: string;
   /** Cost in USD for this single generation. */
@@ -116,4 +157,7 @@ export interface EnrichedPart {
   description?: GeneratedDescription;
   stages: Stage[];
   error?: string;
+  /** Client-side only: the run has not delivered a final result (still
+   *  going, or it died). Never render a verdict for an incomplete run. */
+  incomplete?: boolean;
 }

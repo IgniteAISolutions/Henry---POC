@@ -15,7 +15,7 @@
 // Do not let a demo go out claiming "this is how you write" while the badge
 // still reads reconstructed.
 
-import type { Part, Evidence, Verification } from './types';
+import type { Part, Verification } from './types';
 
 export interface CorpusSample {
   partNumber: string;
@@ -124,15 +124,18 @@ Return ONLY valid JSON. No markdown, no commentary, no code fences:
 { "short_html": "<p>...</p>", "meta_description": "...", "long_html": "<p>...</p><p>...</p>" }
 
 You will be given one user message containing JSON prefixed "Part data:". That
-JSON is your ONLY source of truth. It carries the part itself plus verified
-evidence gathered from other retailers and manufacturer sites.
+JSON is your ONLY source of truth. It carries the part itself plus the facts
+that survived cross-checking against other retailers and manufacturer sites.
 
-Each evidence fact is tagged with a confidence level:
-  corroborated  — appears in two or more independent sources. Use freely.
-  single-source — appears in exactly one source. You may use it, but never
+Every fitment entry, OE reference and attribute carries its own confidence:
+  corroborated  — stated by two or more independent sources. Use freely.
+  single-source — stated by exactly one source. You may use it, but never
                   build the opening paragraph on it alone.
-  conflicting   — sources disagree. OMIT ENTIRELY. Do not hedge, do not
-                  average, do not pick one. Leave the fact out of the copy.
+  catalogue     — from Design 911's own catalogue record, not cross-checked.
+
+"leftOutBecauseSourcesDisagree" names facts that were removed because
+sources contradicted each other. Do not mention them, hint at them, or fill
+them in from general knowledge.
 
 If the evidence is too thin to write a given block, omit that block. A short,
 correct listing beats a padded one. Never pad to reach a length.`;
@@ -157,53 +160,17 @@ Worked example in the house pattern:\n\n${FALLBACK_EXAMPLE}`;
   return [schema, HOUSE_RULES, examples].join('\n\n---\n\n');
 }
 
-/** Packs a part plus its verified evidence into the single user message. */
-export function buildUserMessage(
-  part: Part,
-  evidence: Evidence[],
-  verification: Verification
-): string {
-  // Field name on either side of "field=value", singular, lower case.
-  const fieldOf = (s: string) => s.split('=')[0].toLowerCase().replace(/s$/, '');
-  const confidenceOf = (field: string) => {
-    const key = field.toLowerCase().replace(/s$/, '');
-    if (verification.conflicts.some((c) => c.field.toLowerCase().replace(/s$/, '') === key)) return 'conflicting';
-    if (verification.corroborated.some((c) => fieldOf(c) === key)) return 'corroborated';
-    return 'single-source';
-  };
-
-  const merged: Record<string, unknown> = {};
-  const oeRefs = new Set<string>();
-  const fitByModel = new Map<string, { model: string; engine?: string; years?: string; domains: Set<string> }>();
-
-  for (const e of evidence) {
-    if (!e.partNumberConfirmed) continue;
-    for (const ref of e.fields.oeReferences ?? []) oeRefs.add(ref);
-    for (const f of e.fields.fitment ?? []) {
-      if (!f.model) continue;
-      const cur = fitByModel.get(f.model) ?? { model: f.model, domains: new Set<string>() };
-      cur.engine ??= f.engine;
-      cur.years ??= f.years;
-      cur.domains.add(e.domain);
-      fitByModel.set(f.model, cur);
-    }
-    for (const [k, v] of Object.entries(e.fields.specs ?? {})) {
-      if (v && merged[k] === undefined) merged[k] = v;
-    }
-    for (const key of ['material', 'dimensions', 'weight', 'position', 'quantityRequired'] as const) {
-      const v = e.fields[key];
-      if (!v || merged[key] !== undefined) continue;
-      if (verification.conflicts.some((c) => c.field === key)) continue; // disagreement: omit, don't pick
-      merged[key] = v;
-    }
-  }
-
-  // Each vehicle carries its own confidence. Fitment is the costliest thing to
-  // get wrong in parts copy: a wrong fitment line means a wrong part ordered.
-  const fitment = [...fitByModel.values()].map((f) => ({
-    vehicle: [f.model, f.engine, f.years].filter(Boolean).join(' '),
-    confidence: f.domains.size > 1 ? 'corroborated' : 'single-source',
-  }));
+/** Packs a part plus its ACCEPTED facts into the single user message.
+ *  Takes the verification, not the raw evidence: anything verify() rejected
+ *  simply has no route into the prompt. */
+export function buildUserMessage(part: Part, verification: Verification): string {
+  const { accepted } = verification;
+  const fitment = accepted.fitment.length
+    ? accepted.fitment.map(({ vehicle, confidence }) => ({ vehicle, confidence }))
+    : (part.fitment ?? []).map((f) => ({
+        vehicle: [f.model, f.engine, f.years].filter(Boolean).join(' '),
+        confidence: 'catalogue',
+      }));
 
   const payload = {
     partNumber: part.partNumber,
@@ -212,18 +179,11 @@ export function buildUserMessage(
     category: part.category,
     qualityTier: part.qualityTier ?? 'Unknown',
     knownSummary: part.summary,
-    fitment: fitment.length
-      ? fitment
-      : part.fitment?.map((f) => ({ vehicle: [f.model, f.engine, f.years].filter(Boolean).join(' '), confidence: 'catalogue' })),
-    oeReferences: [...oeRefs],
-    specifications: merged,
-    evidenceConfidence: Object.fromEntries(
-      [...Object.keys(merged), ...(oeRefs.size ? ['oeReferences'] : [])].map(
-        (k) => [k, confidenceOf(k)]
-      )
-    ),
-    conflictingFields: verification.conflicts.map((c) => c.field),
-    sources: evidence.filter((e) => e.partNumberConfirmed).map((e) => e.domain),
+    fitment,
+    oeReferences: accepted.oeReferences.map(({ ref, confidence }) => ({ ref, confidence })),
+    attributes: accepted.attributes.map(({ label, value, confidence }) => ({ name: label, value, confidence })),
+    leftOutBecauseSourcesDisagree: verification.conflicts.map((c) => c.field),
+    sourceCount: verification.sourcesConfirming,
   };
 
   return `Part data: ${JSON.stringify(payload)}`;

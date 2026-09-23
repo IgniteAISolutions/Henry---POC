@@ -26,8 +26,14 @@ export interface RunOptions {
 
 const STAGES: StageName[] = ['search', 'fetch', 'verify', 'write'];
 
+/** Vercel stops the function at 60s. Finish inside 55s so the stream always
+ *  ends with a result the UI can show, rather than being cut off mid-run. */
+export const PIPELINE_BUDGET_MS = 55_000;
+const MIN_WRITE_MS = 8_000;
+
 export async function runPipeline(part: Part, opts: RunOptions = {}): Promise<EnrichedPart> {
   const mode = opts.mode ?? 'auto';
+  const deadline = Date.now() + PIPELINE_BUDGET_MS;
   const stages: Stage[] = STAGES.map((name) => ({ name, status: 'pending' }));
   const emit = (name: StageName, patch: Partial<Stage>) => {
     const s = stages.find((x) => x.name === name)!;
@@ -58,13 +64,13 @@ export async function runPipeline(part: Part, opts: RunOptions = {}): Promise<En
 
     const pages = await timed('fetch', async () => {
       const settled = await Promise.allSettled(found.hits.map((h) => harvestEvidence(h, part.partNumber)));
-      return settled.flatMap((r) => (r.status === 'fulfilled' && r.value ? [r.value] : []));
+      return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
     });
     evidence = pages;
     const confirmed = pages.filter((e) => e.partNumberConfirmed).length;
     emit('fetch', {
       status: 'done',
-      detail: `${pages.length}/${found.hits.length} pages read, ${confirmed} carry the part number`,
+      detail: `${pages.length} product pages read from ${found.hits.length} results, ${confirmed} carry the part number`,
     });
   }
 
@@ -104,9 +110,16 @@ export async function runPipeline(part: Part, opts: RunOptions = {}): Promise<En
     return result;
   }
 
+  const remaining = deadline - Date.now();
+  if (remaining < MIN_WRITE_MS) {
+    emit('write', { status: 'skipped', detail: 'Ran out of time on this request. Try Recorded mode or run it again.' });
+    result.error = 'Search and reading took too long to leave time for writing.';
+    return result;
+  }
+
   try {
     const corpus = await loadCorpus();
-    result.description = await timed('write', () => writeDescription(part, evidence, verification, corpus));
+    result.description = await timed('write', () => writeDescription(part, verification, corpus, deadline));
     emit('write', { status: 'done', detail: `${result.description.model}, $${result.description.costUsd.toFixed(4)}` });
   } catch (err) {
     result.error = (err as Error).message;

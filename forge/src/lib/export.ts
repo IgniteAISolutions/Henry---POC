@@ -88,6 +88,7 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
     { header: 'Full description (HTML)', key: 'long', width: 70 },
     { header: 'Full description (plain text)', key: 'plain', width: 70 },
     { header: 'Left out, and why', key: 'omitted', width: 45 },
+    { header: 'Status', key: 'status', width: 40 },
     { header: 'Model', key: 'model', width: 12 },
     { header: 'Cost (USD)', key: 'cost', width: 10 },
   ];
@@ -101,11 +102,14 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
       src: `${r.verification.sourcesConfirming}/${r.verification.sourcesChecked}`,
       short: d?.shortHtml ?? '',
       meta: d?.metaDescription ?? '',
-      long: d?.longHtml ?? (r.stages.find((s) => s.name === 'write')?.detail ?? ''),
+      long: d?.longHtml ?? '',
       plain: d ? htmlToText(d.longHtml) : '',
-      omitted: [...(d?.omitted ?? []), ...r.verification.conflicts.map((c) => `${c.field}: sources disagree`)]
-        .filter((v, i, a) => a.indexOf(v) === i)
+      omitted: r.verification.conflicts
+        .map((c) => `${c.field}: ${c.values.map((v) => `${v.value} (${v.domain})`).join(' vs ')}`)
         .join('\n'),
+      status: d
+        ? ['Written', ...(d.warnings ?? [])].join('. ')
+        : r.error ?? r.stages.find((s) => s.name === 'write')?.detail ?? '',
       model: d?.model ?? '',
       cost: d?.costUsd ?? '',
     });
@@ -116,7 +120,7 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
     row.getCell('verdict').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
     row.getCell('verdict').font = { color: { argb: 'FFFFFFFF' }, bold: true };
   }
-  styleSheet(ws, ['short', 'meta', 'long', 'plain', 'omitted']);
+  styleSheet(ws, ['short', 'meta', 'long', 'plain', 'omitted', 'status']);
 
   const ev = wb.addWorksheet('Evidence');
   ev.columns = [

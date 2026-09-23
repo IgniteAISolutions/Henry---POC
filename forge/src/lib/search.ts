@@ -58,7 +58,7 @@ async function googleSearch(query: string, limit: number): Promise<SearchHit[]> 
   url.searchParams.set('q', query);
   url.searchParams.set('num', String(Math.min(limit, 10)));
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(6_000) });
   if (!res.ok) throw new Error(`Google CSE ${res.status}`);
 
   const data = (await res.json()) as { items?: Array<{ link: string; title: string; snippet: string }> };
@@ -80,7 +80,7 @@ async function braveSearch(query: string, limit: number): Promise<SearchHit[]> {
 
   const res = await fetch(url, {
     headers: { Accept: 'application/json', 'X-Subscription-Token': key },
-    signal: AbortSignal.timeout(20_000),
+    signal: AbortSignal.timeout(6_000),
   });
   if (!res.ok) throw new Error(`Brave ${res.status}`);
 
