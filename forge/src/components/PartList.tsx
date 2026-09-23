@@ -36,6 +36,10 @@ export default function PartList({ parts, results, running, selected, onSelect }
               <span className="flex shrink-0 flex-col items-end gap-1.5">
                 {isRunning ? (
                   <span className="text-[11px] font-semibold text-forge-400">Running…</span>
+                ) : r?.incomplete ? (
+                  <span className="rounded-full bg-forge-500/15 px-2 py-0.5 text-[11px] font-semibold text-forge-400 ring-1 ring-inset ring-forge-500/30">
+                    Failed
+                  </span>
                 ) : r ? (
                   <VerdictBadge verdict={r.verification.verdict} />
                 ) : (
@@ -44,7 +48,7 @@ export default function PartList({ parts, results, running, selected, onSelect }
                   </span>
                 )}
                 {written && <span className="text-[10.5px] font-medium text-signal-ok">Listing written</span>}
-                {r && !written && !isRunning && (
+                {r && !r.incomplete && !written && !isRunning && (
                   <span className="text-[10.5px] text-chalk-500">Not written</span>
                 )}
               </span>

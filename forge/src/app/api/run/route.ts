@@ -16,6 +16,10 @@ export async function POST(req: Request) {
     force?: boolean;
   };
 
+  if (!['auto', 'live', 'recorded'].includes(mode)) {
+    return Response.json({ error: `Unknown mode "${mode}". Use auto, live or recorded.` }, { status: 400 });
+  }
+
   const part = await findPart(id);
   if (!part) return Response.json({ error: `No part with id ${id}` }, { status: 404 });
 

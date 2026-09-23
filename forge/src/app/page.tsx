@@ -36,7 +36,7 @@ export default function Home() {
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('auto');
-  const [batch, setBatch] = useState(false);
+  const [batch, setBatch] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/api/products')
@@ -51,16 +51,55 @@ export default function Home() {
   const run = useCallback(
     async (part: Part, force = false) => {
       setRunning((s) => new Set(s).add(part.id));
-      // Show the stage track immediately, before the first event arrives.
+      // Show the stage track immediately. `incomplete` stays set until a real
+      // result arrives, so a verdict is never shown for a run that died.
       setResults((r) => ({
         ...r,
         [part.id]: {
           part,
           evidence: [],
           stages: emptyStages(),
-          verification: { verdict: 'unconfirmed', confidence: 0, sourcesChecked: 0, sourcesConfirming: 0, corroborated: [], singleSource: [], conflicts: [], notes: [] },
+          incomplete: true,
+          verification: {
+            verdict: 'unconfirmed', confidence: 0, sourcesChecked: 0, sourcesConfirming: 0,
+            corroborated: [], singleSource: [], conflicts: [], notes: [],
+            accepted: { attributes: [], fitment: [], oeReferences: [] },
+          },
         },
       }));
+
+      const fail = (message: string) =>
+        setResults((r) => {
+          const cur = r[part.id];
+          if (!cur) return r;
+          return {
+            ...r,
+            [part.id]: {
+              ...cur,
+              incomplete: true,
+              error: message,
+              stages: cur.stages.map((s) => (s.status === 'running' ? { ...s, status: 'failed' as const } : s)),
+            },
+          };
+        });
+
+      let gotResult = false;
+      const handle = (line: string) => {
+        if (!line.trim()) return;
+        const msg = JSON.parse(line);
+        if (msg.type === 'stage') {
+          setResults((r) => {
+            const cur = r[part.id];
+            if (!cur) return r;
+            return { ...r, [part.id]: { ...cur, stages: cur.stages.map((s) => (s.name === msg.stage.name ? msg.stage : s)) } };
+          });
+        } else if (msg.type === 'result') {
+          gotResult = true;
+          setResults((r) => ({ ...r, [part.id]: msg.result }));
+        } else if (msg.type === 'error') {
+          fail(msg.error);
+        }
+      };
 
       try {
         const res = await fetch('/api/run', {
@@ -68,7 +107,10 @@ export default function Home() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: part.id, mode, force }),
         });
-        if (!res.body) throw new Error('No response stream');
+        if (!res.ok || !res.body) {
+          const text = await res.text().catch(() => '');
+          throw new Error(`Run failed (HTTP ${res.status})${text ? `: ${text.slice(0, 160)}` : ''}`);
+        }
 
         const reader = res.body.getReader();
         const dec = new TextDecoder();
@@ -79,25 +121,14 @@ export default function Home() {
           buf += dec.decode(value, { stream: true });
           let nl: number;
           while ((nl = buf.indexOf('\n')) >= 0) {
-            const line = buf.slice(0, nl).trim();
+            handle(buf.slice(0, nl));
             buf = buf.slice(nl + 1);
-            if (!line) continue;
-            const msg = JSON.parse(line);
-            if (msg.type === 'stage') {
-              setResults((r) => {
-                const cur = r[part.id];
-                if (!cur) return r;
-                return { ...r, [part.id]: { ...cur, stages: cur.stages.map((s) => (s.name === msg.stage.name ? msg.stage : s)) } };
-              });
-            } else if (msg.type === 'result') {
-              setResults((r) => ({ ...r, [part.id]: msg.result }));
-            } else if (msg.type === 'error') {
-              setResults((r) => ({ ...r, [part.id]: { ...r[part.id], error: msg.error } }));
-            }
           }
         }
+        handle(buf + dec.decode());
+        if (!gotResult) fail('The run stopped before finishing (server timeout or dropped connection). Try again, or switch to Recorded.');
       } catch (err) {
-        setResults((r) => ({ ...r, [part.id]: { ...r[part.id], error: (err as Error).message } }));
+        fail((err as Error).message);
       } finally {
         setRunning((s) => {
           const n = new Set(s);
@@ -112,18 +143,19 @@ export default function Home() {
   // One at a time, and the view follows along, so the room can watch each
   // part go through rather than ten spinners at once.
   const runAll = async () => {
-    setBatch(true);
-    for (const p of parts) {
+    for (const [i, p] of parts.entries()) {
+      setBatch(i + 1);
       setSelected(p.id);
       await run(p);
     }
-    setBatch(false);
+    setBatch(null);
   };
 
   const stats = useMemo(() => {
-    const done = Object.values(results).filter((r) => r.stages.every((s) => s.status !== 'pending' && s.status !== 'running'));
+    const done = Object.values(results).filter((r) => !r.incomplete);
     return {
       run: done.length,
+      failed: Object.values(results).filter((r) => r.incomplete && r.error).length,
       written: done.filter((r) => r.description).length,
       refused: done.filter((r) => !r.description && r.verification.verdict === 'unconfirmed').length,
       cost: done.reduce((a, r) => a + (r.description?.costUsd ?? 0), 0),
@@ -136,6 +168,10 @@ export default function Home() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ results: parts.map((p) => results[p.id]).filter(Boolean) }),
     });
+    if (!res.ok) {
+      alert(`Export failed (HTTP ${res.status}).`);
+      return;
+    }
     await download(res, 'forge-listings.xlsx');
   };
 
@@ -195,17 +231,17 @@ export default function Home() {
             </button>
             <button
               onClick={runAll}
-              disabled={batch || !parts.length}
+              disabled={batch !== null || !parts.length}
               className="rounded-lg bg-forge-500 px-4 py-2 text-xs font-bold uppercase tracking-wider text-white hover:bg-forge-600 disabled:opacity-50"
             >
-              {batch ? `Running ${stats.run + 1}/${parts.length}…` : 'Run all 10'}
+              {batch !== null ? `Running ${batch}/${parts.length}…` : `Run all ${parts.length}`}
             </button>
           </div>
         </div>
 
         {meta && !meta.config.writer && (
           <div className="border-t border-signal-warn/20 bg-signal-warn/10 px-4 py-2 text-center text-xs text-signal-warn sm:px-6">
-            OPENAI_API_KEY is not set. Search and verification will run; writing is skipped. Add it to <code>.env.local</code> and restart.
+            OPENAI_API_KEY is not set. Search and verification will run; writing is skipped. Add it to <code>.env.local</code> locally, or to the Vercel project's environment variables and redeploy.
           </div>
         )}
       </header>
@@ -219,7 +255,7 @@ export default function Home() {
               {[
                 ['Run', `${stats.run}/${parts.length}`],
                 ['Written', String(stats.written)],
-                ['Refused', String(stats.refused)],
+                [stats.failed ? 'Failed' : 'Refused', String(stats.failed || stats.refused)],
               ].map(([k, v]) => (
                 <div key={k} className="rounded-md bg-ink-850 py-1.5">
                   <div className="font-mono text-lg font-semibold tabular-nums text-chalk-50">{v}</div>

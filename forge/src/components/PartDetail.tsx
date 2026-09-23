@@ -32,11 +32,19 @@ function StageTrack({ stages }: { stages: Stage[] }) {
 
 function Evidence({ r }: { r: EnrichedPart }) {
   const sorted = [...r.evidence].sort((a, b) => Number(b.partNumberConfirmed) - Number(a.partNumberConfirmed));
-  const recorded = r.evidence.some((e) => e.origin === 'recorded');
+  const hasLive = r.evidence.some((e) => e.origin === 'live');
+  const hasRecorded = r.evidence.some((e) => e.origin === 'recorded');
+  const originChip = hasLive && hasRecorded
+    ? <Chip tone="warn">Live + recorded</Chip>
+    : hasRecorded
+      ? <Chip tone="warn">Recorded evidence</Chip>
+      : hasLive
+        ? <Chip tone="ok">Live</Chip>
+        : null;
   return (
     <Panel
       title={`Sources · ${r.verification.sourcesConfirming} of ${r.evidence.length} carry the part number`}
-      aside={recorded ? <Chip tone="warn">Recorded evidence</Chip> : <Chip tone="ok">Live</Chip>}
+      aside={originChip}
     >
       <ul className="space-y-2.5">
         {sorted.map((e, i) => (
@@ -48,6 +56,9 @@ function Evidence({ r }: { r: EnrichedPart }) {
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs text-chalk-50">{e.domain}</span>
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${e.origin === 'live' ? 'text-signal-ok' : 'text-signal-warn'}`}>
+                {e.origin === 'live' ? 'live' : 'recorded'}
+              </span>
               {e.partNumberConfirmed ? (
                 <Chip tone="ok">Part number on page</Chip>
               ) : (
@@ -76,7 +87,13 @@ function Evidence({ r }: { r: EnrichedPart }) {
 
 function Facts({ r }: { r: EnrichedPart }) {
   const v = r.verification;
-  const pretty = (s: string) => s.replace(/^oeReference=/, 'OE ref: ').replace(/^fitment=/, 'Fits ').replace(/^(\w+)=/, (_, k) => `${k[0].toUpperCase()}${k.slice(1)}: `);
+  const pretty = (s: string) => {
+    const i = s.indexOf('=');
+    const [k, v] = [s.slice(0, i), s.slice(i + 1)];
+    if (k === 'fitment') return `Fits ${v}`;
+    if (k === 'oeReference') return `OE ref: ${v}`;
+    return `${k}: ${v}`;
+  };
   return (
     <Panel title="What Forge can stand behind" aside={<VerdictBadge verdict={v.verdict} />}>
       <div className="mb-4 flex items-end gap-3">
@@ -111,7 +128,7 @@ function Facts({ r }: { r: EnrichedPart }) {
             <dd className="space-y-1.5">
               {v.conflicts.map((c) => (
                 <div key={c.field} className="rounded-md border border-forge-500/30 bg-forge-500/5 px-3 py-2 text-chalk-200">
-                  <span className="font-semibold capitalize text-forge-400">{c.field}: </span>
+                  <span className="font-semibold text-forge-400">{c.kind === 'fitment-detail' ? `Fitment detail, ${c.field}` : c.field}: </span>
                   {c.values.map((x) => `"${x.value}" (${x.domain})`).join(' vs ')}
                 </div>
               ))}
@@ -129,7 +146,9 @@ function Facts({ r }: { r: EnrichedPart }) {
 function Listing({ part, r, onForce, forcing }: { part: Part; r?: EnrichedPart; onForce: () => void; forcing: boolean }) {
   const d = r?.description;
   const writeStage = r?.stages.find((s) => s.name === 'write');
-  const refused = writeStage?.status === 'skipped' && r?.verification.verdict === 'unconfirmed';
+  const failed = r?.incomplete && r.error;
+  const refused = !r?.incomplete && writeStage?.status === 'skipped' && r?.verification.verdict === 'unconfirmed';
+  const confirmedButEmpty = (r?.verification.sourcesConfirming ?? 0) > 0;
 
   return (
     <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
@@ -156,13 +175,25 @@ function Listing({ part, r, onForce, forcing }: { part: Part; r?: EnrichedPart; 
               <p className="label mb-1">Meta description · {d.metaDescription.length} chars</p>
               <p className="text-sm text-chalk-200">{d.metaDescription}</p>
             </div>
+            {d.warnings.length > 0 && (
+              <ul className="mt-3 space-y-1 text-xs text-signal-warn">
+                {d.warnings.map((w) => <li key={w}>{w}</li>)}
+              </ul>
+            )}
           </article>
+        ) : failed ? (
+          <div>
+            <p className="text-lg font-medium text-forge-400">This run didn&apos;t finish.</p>
+            <p className="mt-2 text-sm leading-relaxed text-chalk-400">{r?.error}</p>
+          </div>
         ) : refused ? (
           <div>
             <p className="text-lg font-medium text-chalk-50">Forge won&apos;t write this one.</p>
             <p className="mt-2 text-sm leading-relaxed text-chalk-400">
-              None of the pages Forge found carries this exact part number with usable detail. Anything written now would be a
-              guess, and a guessed parts listing is how the wrong part gets ordered.
+              {confirmedButEmpty
+                ? 'Pages carry this part number, but Forge could not pull usable facts from them.'
+                : 'None of the pages Forge found carries this exact part number with usable detail.'}{' '}
+              Anything written now would be a guess, and a guessed parts listing is how the wrong part gets ordered.
             </p>
             <button
               onClick={onForce}
@@ -210,7 +241,7 @@ export default function PartDetail({ part, result, running, onRun, onForce }: {
 
       <Listing part={part} r={result} onForce={onForce} forcing={running} />
 
-      {result && (
+      {result && !result.incomplete && (
         <div className="grid gap-4 xl:grid-cols-2">
           <Facts r={result} />
           <Evidence r={result} />
