@@ -10,7 +10,8 @@
     "lint": "next lint",
     "harvest": "tsx scripts/harvest.ts",
     "test:harvest": "tsx --test scripts/harvest-lib.test.ts",
-    "spreadsheet": "tsx scripts/make-spreadsheet.ts"
+    "spreadsheet": "tsx scripts/make-spreadsheet.ts",
+    "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
     "next": "15.5.4",
