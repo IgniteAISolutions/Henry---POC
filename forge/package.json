@@ -2,13 +2,14 @@
   "name": "forge",
   "version": "0.1.0",
   "private": true,
-  "description": "Forge — product copy engine for Design 911. Finds parts without descriptions, verifies them by part number across the web, and writes listings in the Design 911 house voice.",
+  "description": "Forge \u2014 product copy engine for Design 911. Finds parts without descriptions, verifies them by part number across the web, and writes listings in the Design 911 house voice.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "harvest": "tsx scripts/harvest.ts",
+    "test:harvest": "tsx --test scripts/harvest-lib.test.ts",
     "spreadsheet": "tsx scripts/make-spreadsheet.ts"
   },
   "dependencies": {
