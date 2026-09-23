@@ -54,7 +54,9 @@ Also worth telling: while this was being built, a search engine summary describe
 - A page contributes facts **only if the part number physically appears in it**. A search engine thinking a page is relevant isn't enough.
 - Sources count as independent only if they're on **different domains**.
 - A fact seen on 2+ sources is **corroborated**. Seen on one, it's **single-source**: usable, but flagged to the writer. When sources **disagree**, the fact is removed before the writer sees it.
-- Fitment carries confidence per vehicle, because a wrong fitment line is the most expensive mistake in parts copy.
+- Spec-table rows and scraped fields are compared as one set of facts ("Material" on one site and "Composition" on another are the same fact).
+- Fitment is agreed per model, then per engine and year range. A vehicle two sources agree on only carries detail that both agree on. If one says `924S 1988` and another says `924S 1985-89`, the copy says `924S` and the year disagreement is shown as left out. A wrong fitment line is the most expensive mistake in parts copy.
+- Retailer search-results pages are never evidence. Forge follows their product links one hop and reads those pages instead.
 - Verdicts: `verified` (strong agreement), `probable` (identity established, detail thinner), `conflicting` (written, disputed fields dropped), `unconfirmed` (not written unless you press *Write from catalogue data only*).
 
 ## The voice: read before the demo
@@ -78,6 +80,13 @@ The harvester writes files, so run it on your machine, then commit `data/` and r
 
 In order: Google Programmable Search (`GOOGLE_API_KEY` + `GOOGLE_CSE_ID`), then Brave (`BRAVE_API_KEY`), then **direct**, which needs no key and queries each specialist retailer's own search page. Direct works, but it's noisier, and some retailers block datacenter IPs such as Vercel's. With no search key, expect Auto mode to fall back to recorded evidence more often.
 
+## Tests
+
+```bash
+npm test                 # verification, page reading, sanitiser, recorded demo run
+npm run test:harvest     # harvester parsing against synthetic Design 911-shaped pages
+```
+
 ## Where things live
 
 ```
@@ -98,6 +107,8 @@ deliverables/                 the catalogue spreadsheet (npm run spreadsheet)
 
 - The 10 parts' "no description" status is **inferred** from bare Design 911 page titles ("Original Porsche Part - 99761209005"). `npm run harvest -- --find-missing` confirms it against the page body.
 - Recorded evidence was captured from search-index **titles and URLs**. Page bodies weren't fetched. Live mode reads the full pages.
+- The harvester's selectors have **never been run against the real site**. They were built against synthetic pages because the build machine couldn't reach design911.co.uk. It tries JSON-LD first, then microdata, then common description containers. If the first real run finds nothing, capture one real page as a fixture in `scripts/harvest-lib.test.ts` and adjust `scripts/harvest-lib.ts`.
+- Live OpenAI generation hasn't been run yet, for the same reason. The first Vercel deployment is its first real test.
 - The app has no login. Anyone with the URL can press *Run all 10*, which spends a little OpenAI credit (roughly one US cent per part on `gpt-4o`). Keep Vercel Authentication on until the demo if that matters.
 
 Not affiliated with or endorsed by Porsche AG or Design 911.
