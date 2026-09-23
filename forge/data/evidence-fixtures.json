@@ -36,49 +36,6 @@
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
     },
     {
-      "url": "https://www.ebay.com/itm/286099886436",
-      "domain": "ebay.com",
-      "title": "PORSCHE 911 996 928 964 BOXSTER GLOVE BOX LIGHT GENUINE 92863210100 928 63210100",
-      "snippet": "PORSCHE 911 996 928 964 BOXSTER GLOVE BOX LIGHT GENUINE 92863210100 928 63210100",
-      "partNumberConfirmed": true,
-      "fields": {
-        "fitment": [
-          {
-            "model": "996"
-          },
-          {
-            "model": "928"
-          },
-          {
-            "model": "964"
-          },
-          {
-            "model": "986 Boxster"
-          }
-        ]
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
-      "origin": "recorded",
-      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
-    },
-    {
-      "url": "https://www.delawareporscheparts.com/oem-parts/porsche-glove-box-light-92863210100",
-      "domain": "delawareporscheparts.com",
-      "title": "Glove Box Light - Porsche (928-632-101-00)",
-      "snippet": "Glove Box Light - Porsche (928-632-101-00)",
-      "partNumberConfirmed": true,
-      "fields": {
-        "fitment": [
-          {
-            "model": "928"
-          }
-        ]
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
-      "origin": "recorded",
-      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
-    },
-    {
       "url": "https://daddys-carparts.com/en/GLOVE-BOX-LIGHT-FOR-PORSCHE-964-993-996-986-928/DC10589",
       "domain": "daddys-carparts.com",
       "title": "GLOVE BOX LIGHT FOR PORSCHE 964 993 996 986 928 | DC10589",
@@ -106,6 +63,46 @@
       "fetchedAt": "2026-09-23T06:30:00Z",
       "origin": "recorded",
       "note": "Part number not visible in title or URL. Consistent, but not counted."
+    },
+    {
+      "url": "https://www.delawareporscheparts.com/oem-parts/porsche-glove-box-light-92863210100",
+      "domain": "delawareporscheparts.com",
+      "title": "Glove compartment light for Porsche 928, 964, 993, 986 and 996 | Delaware Porsche Parts",
+      "snippet": "Glove compartment light for Porsche 928, 964, 993, 986 and 996 | Delaware Porsche Parts",
+      "partNumberConfirmed": true,
+      "fields": {
+        "fitment": [
+          {
+            "model": "928"
+          },
+          {
+            "model": "964"
+          },
+          {
+            "model": "993"
+          },
+          {
+            "model": "986 Boxster"
+          },
+          {
+            "model": "996"
+          }
+        ]
+      },
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
+    },
+    {
+      "url": "https://www.sunsetporscheparts.com/oem-parts/porsche-inst-panel-lamp-92863210100",
+      "domain": "sunsetporscheparts.com",
+      "title": "1989-2005 Porsche Inst Panel Lamp 928-632-101-00 | Sunset Porsche Parts",
+      "snippet": "1989-2005 Porsche Inst Panel Lamp 928-632-101-00 | Sunset Porsche Parts",
+      "partNumberConfirmed": true,
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
     }
   ],
   "99761209005": [
@@ -133,26 +130,6 @@
     }
   ],
   "99761860702": [
-    {
-      "url": "https://www.ebay.com/itm/335594216895",
-      "domain": "ebay.com",
-      "title": "Porsche 911 997 Carrera Continental ECU Engine Control Unit Module 99761860702",
-      "snippet": "Porsche 911 997 Carrera Continental ECU Engine Control Unit Module 99761860702",
-      "partNumberConfirmed": true,
-      "fields": {
-        "fitment": [
-          {
-            "model": "997.2 Carrera"
-          }
-        ],
-        "specs": {
-          "Manufacturer": "Continental"
-        }
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
-      "origin": "recorded",
-      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
-    },
     {
       "url": "https://www.redlineautoparts.com/porsche/2005-2012-boxster-cayman-987/2009-2012-porsche-987-boxster-s-3-4l-ecu-kit-immobilizer-key-99761860702-bc025/",
       "domain": "redlineautoparts.com",
@@ -215,6 +192,17 @@
       "fetchedAt": "2026-09-23T06:30:00Z",
       "origin": "recorded",
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
+    },
+    {
+      "url": "https://www.sunsetporscheparts.com/oem-parts/porsche-control-module-99761860705",
+      "domain": "sunsetporscheparts.com",
+      "title": "2009-2013 Porsche Control Module 997-618-607-05 | Sunset Porsche Parts",
+      "snippet": "2009-2013 Porsche Control Module 997-618-607-05 | Sunset Porsche Parts",
+      "partNumberConfirmed": false,
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Authorised dealer, but this page lists a different part number (99761860705). Not counted as confirmation."
     }
   ],
   "96410601401": [
@@ -307,29 +295,6 @@
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
     },
     {
-      "url": "https://www.ebay.com/itm/192850428395",
-      "domain": "ebay.com",
-      "title": "Genuine Porsche 924S 944 85-89 Hose Idle Control Valve Rear 94411021401",
-      "snippet": "Genuine Porsche 924S 944 85-89 Hose Idle Control Valve Rear 94411021401",
-      "partNumberConfirmed": true,
-      "fields": {
-        "fitment": [
-          {
-            "model": "924S",
-            "years": "1985-89"
-          },
-          {
-            "model": "944",
-            "years": "1985-89"
-          }
-        ],
-        "position": "Rear"
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
-      "origin": "recorded",
-      "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
-    },
-    {
       "url": "https://www.rmeuropean.com/Products/94411021401-MFG100-V760.aspx",
       "domain": "rmeuropean.com",
       "title": "Porsche 944 Coupe 2.5L L4 Hose - Idle Control Valve",
@@ -383,23 +348,41 @@
       "fetchedAt": "2026-09-23T06:30:00Z",
       "origin": "recorded",
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
+    },
+    {
+      "url": "https://www.porscheatlantaperimeterparts.com/products/porsche/944/Rubber-Hose/3844769/94411021402.html",
+      "domain": "porscheatlantaperimeterparts.com",
+      "title": "Porsche 944 Rubber Hose. Engine, Hoses, Ljetronic - 94411021402 | Porsche Atlanta Perimeter",
+      "snippet": "Porsche 944 Rubber Hose. Engine, Hoses, Ljetronic - 94411021402 | Porsche Atlanta Perimeter",
+      "partNumberConfirmed": false,
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Authorised dealer, but this page lists a different part number (94411021402). Not counted as confirmation."
     }
   ],
   "9P1601147K8Z8": [
     {
-      "url": "https://www.ebay.de/p/17048349797",
-      "domain": "ebay.de",
-      "title": "Original PORSCHE Radzierkappe schwarz 9P1601147A041",
-      "snippet": "Original PORSCHE Radzierkappe schwarz 9P1601147A041",
+      "url": "https://www.sunsetporscheparts.com/oem-parts/porsche-center-cap-9p1601147a8z8",
+      "domain": "sunsetporscheparts.com",
+      "title": "2008-2025 Porsche Center Cap 9P1-601-147-A-8Z8 | Sunset Porsche Parts",
+      "snippet": "2008-2025 Porsche Center Cap 9P1-601-147-A-8Z8 | Sunset Porsche Parts",
       "partNumberConfirmed": false,
-      "fields": {
-        "specs": {
-          "Part family": "9P1601147 wheel centre cap"
-        }
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
       "origin": "recorded",
-      "note": "Sibling number (black variant). Confirms the part family, not this colour variant."
+      "note": "Authorised dealer, but this page lists a different part number (9P1601147A8Z8, a sibling variant). Not counted as confirmation."
+    },
+    {
+      "url": "https://www.delawareporscheparts.com/oem-parts/porsche-center-cap-9p1601147a8z8",
+      "domain": "delawareporscheparts.com",
+      "title": "9P1-601-147-A-8Z8 - Center Cap 2008-2025 Porsche | Delaware Porsche Parts",
+      "snippet": "9P1-601-147-A-8Z8 - Center Cap 2008-2025 Porsche | Delaware Porsche Parts",
+      "partNumberConfirmed": false,
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Authorised dealer, but this page lists a different part number (9P1601147A8Z8, a sibling variant). Not counted as confirmation."
     }
   ],
   "99750396302GRV": [
@@ -467,6 +450,17 @@
       "fetchedAt": "2026-09-23T06:30:00Z",
       "origin": "recorded",
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
+    },
+    {
+      "url": "https://www.sunsetporscheparts.com/oem-parts/porsche-rocker-panel-99750396309grv",
+      "domain": "sunsetporscheparts.com",
+      "title": "2006-2013 Porsche 911 Rocker Panel 997-503-963-09-GRV | Sunset Porsche Parts",
+      "snippet": "2006-2013 Porsche 911 Rocker Panel 997-503-963-09-GRV | Sunset Porsche Parts",
+      "partNumberConfirmed": false,
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
+      "origin": "recorded",
+      "note": "Authorised dealer, listing 99750396309GRV, which rosepassion records as superseding this number. Not counted as confirmation."
     }
   ],
   "9645520550005T": [
@@ -498,29 +492,15 @@
       "note": "Recorded from the web search index on 23 Sep 2026. Page title and URL only; the page body was not fetched."
     },
     {
-      "url": "https://www.ebay.com/itm/256564214975",
-      "domain": "ebay.com",
-      "title": "Porsche 911 964 993 (1989-1998) OEM Upper Dashboard Black",
-      "snippet": "Porsche 911 964 993 (1989-1998) OEM Upper Dashboard Black",
+      "url": "https://www.sunsetporscheparts.com/oem-parts/porsche-crash-pad-9935520550005t",
+      "domain": "sunsetporscheparts.com",
+      "title": "1989-1998 Porsche 911 Crash Pad 993-552-055-00-05T | Sunset Porsche Parts",
+      "snippet": "1989-1998 Porsche 911 Crash Pad 993-552-055-00-05T | Sunset Porsche Parts",
       "partNumberConfirmed": false,
-      "fields": {
-        "fitment": [
-          {
-            "model": "964",
-            "years": "1989-94"
-          },
-          {
-            "model": "993",
-            "years": "1994-98"
-          }
-        ],
-        "specs": {
-          "Colour": "Black"
-        }
-      },
-      "fetchedAt": "2026-09-23T06:30:00Z",
+      "fields": {},
+      "fetchedAt": "2026-09-23T07:05:00Z",
       "origin": "recorded",
-      "note": "Part number not visible in title. Consistent, but not counted."
+      "note": "Authorised dealer, listing 9935520550005T, which rosepassion records as the current number for this trim. Not counted as confirmation."
     }
   ],
   "90150150300": [
