@@ -20,20 +20,11 @@ import type {
   Verification,
   VerificationVerdict,
 } from './types';
+import { isAuthorised, isBlocked, registrableDomain, dealerName } from './sources';
 
 // ── Normalisation ────────────────────────────────────────────────────
 
-/** Second-level labels under which companies register (example.co.uk). */
-const SECOND_LEVEL = new Set(['co', 'com', 'org', 'net', 'ac', 'gov', 'ltd', 'plc', 'me', 'edu']);
-
-/** "shop.pelicanparts.com" and "forums.pelicanparts.com" are one company. */
-export function registrableDomain(domain: string): string {
-  const labels = domain.toLowerCase().replace(/^www\./, '').split('.').filter(Boolean);
-  if (labels.length <= 2) return labels.join('.');
-  const [sld, tld] = labels.slice(-2);
-  const take = tld.length === 2 && SECOND_LEVEL.has(sld) ? 3 : 2;
-  return labels.slice(-take).join('.');
-}
+export { registrableDomain } from './sources';
 
 /** Loose equality for supplier-written values. "1.2 kg" = "1,2 kg" = "1.2kg",
  *  "1,200 g" = "1200 g", but "12 kg" != "1,2 kg". */
@@ -88,6 +79,7 @@ export function normYears(years: string): string {
 function independentSources(evidence: Evidence[]): Array<Evidence & { company: string }> {
   const byCompany = new Map<string, Evidence>();
   for (const e of evidence) {
+    if (isBlocked(e.domain)) continue; // eBay and friends never count
     const company = registrableDomain(e.domain);
     const prev = byCompany.get(company);
     if (!prev || (!prev.partNumberConfirmed && e.partNumberConfirmed)) byCompany.set(company, e);
@@ -113,6 +105,21 @@ function attributesOf(e: Evidence): Map<string, { label: string; value: string }
 }
 
 const conf = (n: number): FactConfidence => (n > 1 ? 'corroborated' : 'single-source');
+const anyAuthorised = (companies: Iterable<string>) => [...companies].some(isAuthorised);
+const label = (company: string) => dealerName(company) ?? company;
+
+/** When sources disagree: if the authorised dealers among them all say the
+ *  same thing, that value stands. Otherwise there is no winner. */
+function dealerVerdict<T extends { value: string; domain: string }>(
+  distinct: T[],
+  all: T[],
+  same: (a: string, b: string) => boolean
+): string | undefined {
+  const dealerValues = all.filter((v) => isAuthorised(v.domain));
+  if (!dealerValues.length) return undefined;
+  const agreed = dealerValues.every((v) => same(v.value, dealerValues[0].value));
+  return agreed && distinct.length > 1 ? dealerValues[0].value : undefined;
+}
 
 // ── verify ───────────────────────────────────────────────────────────
 
@@ -123,12 +130,13 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
   const sourcesChecked = all.length;
   const sourcesConfirming = confirming.length;
   const conflicts: Verification['conflicts'] = [];
+  const overrides: Verification['overrides'] = [];
   const accepted: AcceptedFacts = { attributes: [], fitment: [], oeReferences: [] };
 
   if (!sourcesChecked) {
     return {
       verdict: 'unconfirmed', confidence: 0, sourcesChecked: 0, sourcesConfirming: 0,
-      corroborated: [], singleSource: [], conflicts: [], accepted,
+      corroborated: [], singleSource: [], conflicts: [], overrides: [], accepted,
       notes: [`No page could be retrieved for ${partNumber}.`],
     };
   }
@@ -145,15 +153,25 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
       attr.set(key, entry);
     }
   }
-  for (const { label, values } of attr.values()) {
+  for (const { label: name, values } of attr.values()) {
     const distinct: typeof values = [];
     for (const v of values) if (!distinct.some((d) => sameValue(d.value, v.value))) distinct.push(v);
+    let chosen = values[0].value;
     if (distinct.length > 1) {
-      conflicts.push({ field: label, kind: 'attribute', values: distinct });
-      notes.push(`${label}: ${distinct.length} sources disagree. Left out of the copy.`);
-      continue;
+      const dealerValue = dealerVerdict(distinct, values, sameValue);
+      if (dealerValue === undefined) {
+        conflicts.push({ field: name, kind: 'attribute', values: distinct });
+        notes.push(`${name}: ${distinct.length} sources disagree. Left out of the copy.`);
+        continue;
+      }
+      chosen = dealerValue;
+      const kept = values.filter((v) => sameValue(v.value, dealerValue));
+      const overruled = values.filter((v) => !sameValue(v.value, dealerValue));
+      overrides.push({ field: name, kind: 'attribute', kept: { value: dealerValue, domains: kept.map((v) => v.domain) }, overruled });
+      notes.push(`${name}: authorised dealer value "${dealerValue}" kept over ${overruled.map((o) => `"${o.value}" (${o.domain})`).join(', ')}.`);
     }
-    accepted.attributes.push({ label, value: values[0].value, confidence: conf(values.length), sources: values.map((v) => v.domain) });
+    const backing = values.filter((v) => sameValue(v.value, chosen)).map((v) => v.domain);
+    accepted.attributes.push({ label: name, value: chosen, confidence: conf(backing.length), sources: backing, authorised: anyAuthorised(backing) });
   }
 
   // Fitment: agree per model, then per attribute of that model. A
@@ -182,22 +200,36 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
     const corroboratedModel = m.sources.size > 1;
     const pick = (t: Tally, what: string): string | undefined => {
       if (t.size === 0) return undefined;
+      const entries = [...t.entries()];
       if (t.size > 1) {
+        const dealerBacked = entries.filter(([, ds]) => anyAuthorised(ds));
+        if (dealerBacked.length === 1) {
+          const [value, ds] = dealerBacked[0];
+          overrides.push({
+            field: `${m.display} ${what}`,
+            kind: 'fitment-detail',
+            kept: { value, domains: [...ds] },
+            overruled: entries.filter(([v]) => v !== value).map(([v, d]) => ({ value: v, domain: [...d].join(', ') })),
+          });
+          return value;
+        }
         conflicts.push({
           field: `${m.display} ${what}`,
           kind: 'fitment-detail',
-          values: [...t.entries()].map(([value, ds]) => ({ value, domain: [...ds].join(', ') })),
+          values: entries.map(([value, ds]) => ({ value, domain: [...ds].join(', ') })),
         });
         return undefined;
       }
-      const [[value, ds]] = [...t.entries()];
-      if (corroboratedModel && ds.size < 2) return undefined;
+      const [[value, ds]] = entries;
+      // A corroborated vehicle carries only corroborated detail, unless an
+      // authorised dealer is the one stating it.
+      if (corroboratedModel && ds.size < 2 && !anyAuthorised(ds)) return undefined;
       return value;
     };
     const engine = pick(m.engine, 'engine');
     const years = pick(m.years, 'years');
     const vehicle = [m.display, engine, years].filter(Boolean).join(' ');
-    accepted.fitment.push({ vehicle, confidence: conf(m.sources.size), sources: [...m.sources] });
+    accepted.fitment.push({ vehicle, confidence: conf(m.sources.size), sources: [...m.sources], authorised: anyAuthorised(m.sources) });
   }
 
   // OE references, each with its own confidence.
@@ -211,12 +243,12 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
       refs.get(ref)!.add(e.company);
     }
   }
-  for (const [ref, ds] of refs) accepted.oeReferences.push({ ref, confidence: conf(ds.size), sources: [...ds] });
+  for (const [ref, ds] of refs) accepted.oeReferences.push({ ref, confidence: conf(ds.size), sources: [...ds], authorised: anyAuthorised(ds) });
 
   // Human-readable lists for the UI, derived from `accepted` so the two can
   // never disagree.
   const tag = (f: { confidence: FactConfidence; sources: string[] }, s: string) =>
-    f.confidence === 'corroborated' ? s : `${s} (${f.sources[0]})`;
+    f.confidence === 'corroborated' ? s : `${s} (${label(f.sources[0])})`;
   const facts: Array<{ confidence: FactConfidence; text: string }> = [
     ...accepted.attributes.map((a) => ({ confidence: a.confidence, text: tag(a, `${a.label}=${a.value}`) })),
     ...accepted.fitment.map((f) => ({ confidence: f.confidence, text: tag(f, `fitment=${f.vehicle}`) })),
@@ -240,6 +272,12 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
     confidence = Math.min(confidence, 35);
     notes.push('Part number confirmed, but no structured facts could be extracted.');
   }
+  // Priority for authorised dealers: a confirming dealer page lifts confidence.
+  const dealerConfirming = confirming.some((e) => isAuthorised(e.company));
+  if (dealerConfirming) {
+    confidence = Math.min(95, confidence + 10);
+    notes.push(`Confirmed by an authorised Porsche dealer: ${[...new Set(confirming.filter((e) => isAuthorised(e.company)).map((e) => label(e.company)))].join(', ')}.`);
+  }
   const attributeConflicts = conflicts.filter((c) => c.kind === 'attribute').length;
   const detailConflicts = conflicts.length - attributeConflicts;
   confidence = Math.max(0, confidence - attributeConflicts * 8 - detailConflicts * 3);
@@ -250,7 +288,7 @@ export function verify(evidence: Evidence[], partNumber: string): Verification {
   else if (confidence >= 40) verdict = 'probable';
   else verdict = 'unconfirmed';
 
-  return { verdict, confidence, sourcesChecked, sourcesConfirming, corroborated, singleSource, conflicts, notes, accepted };
+  return { verdict, confidence, sourcesChecked, sourcesConfirming, corroborated, singleSource, conflicts, overrides, notes, accepted };
 }
 
 // Re-exported for tests and the UI.

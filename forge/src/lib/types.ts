@@ -74,18 +74,22 @@ export interface AcceptedFact {
   value: string;
   confidence: FactConfidence;
   sources: string[];
+  /** Backed by at least one authorised Porsche dealer. */
+  authorised: boolean;
 }
 
 export interface AcceptedFitment {
   vehicle: string;
   confidence: FactConfidence;
   sources: string[];
+  authorised: boolean;
 }
 
 export interface AcceptedReference {
   ref: string;
   confidence: FactConfidence;
   sources: string[];
+  authorised: boolean;
 }
 
 /** Everything the writer is allowed to see. Built by verify(), and nothing
@@ -115,6 +119,13 @@ export interface Verification {
     field: string;
     kind: 'attribute' | 'fitment-detail';
     values: Array<{ value: string; domain: string }>;
+  }>;
+  /** Disagreements settled in favour of agreeing authorised dealers. */
+  overrides: Array<{
+    field: string;
+    kind: 'attribute' | 'fitment-detail';
+    kept: { value: string; domains: string[] };
+    overruled: Array<{ value: string; domain: string }>;
   }>;
   notes: string[];
   accepted: AcceptedFacts;

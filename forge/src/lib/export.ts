@@ -7,6 +7,7 @@
 
 import ExcelJS from 'exceljs';
 import type { EnrichedPart, Part } from './types';
+import { dealerName, sourceTier } from './sources';
 
 const INK = 'FF0E1013';
 const RED = 'FFE4342B';
@@ -88,6 +89,7 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
     { header: 'Full description (HTML)', key: 'long', width: 70 },
     { header: 'Full description (plain text)', key: 'plain', width: 70 },
     { header: 'Left out, and why', key: 'omitted', width: 45 },
+    { header: 'Dealer overruled', key: 'overruled', width: 45 },
     { header: 'Status', key: 'status', width: 40 },
     { header: 'Model', key: 'model', width: 12 },
     { header: 'Cost (USD)', key: 'cost', width: 10 },
@@ -107,6 +109,9 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
       omitted: r.verification.conflicts
         .map((c) => `${c.field}: ${c.values.map((v) => `${v.value} (${v.domain})`).join(' vs ')}`)
         .join('\n'),
+      overruled: r.verification.overrides
+        .map((o) => `${o.field}: kept ${o.kept.value} (${o.kept.domains.map((x) => dealerName(x) ?? x).join(', ')}) over ${o.overruled.map((x) => `${x.value} (${x.domain})`).join(', ')}`)
+        .join('\n'),
       status: d
         ? ['Written', ...(d.warnings ?? [])].join('. ')
         : r.error ?? r.stages.find((s) => s.name === 'write')?.detail ?? '',
@@ -120,12 +125,13 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
     row.getCell('verdict').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
     row.getCell('verdict').font = { color: { argb: 'FFFFFFFF' }, bold: true };
   }
-  styleSheet(ws, ['short', 'meta', 'long', 'plain', 'omitted', 'status']);
+  styleSheet(ws, ['short', 'meta', 'long', 'plain', 'omitted', 'overruled', 'status']);
 
   const ev = wb.addWorksheet('Evidence');
   ev.columns = [
     { header: 'Part number', key: 'pn', width: 18 },
     { header: 'Source', key: 'domain', width: 26 },
+    { header: 'Source type', key: 'tier', width: 26 },
     { header: 'Carries part number', key: 'ok', width: 12 },
     { header: 'Origin', key: 'origin', width: 10 },
     { header: 'Page title', key: 'title', width: 70 },
@@ -137,6 +143,7 @@ export async function resultsWorkbook(results: EnrichedPart[]): Promise<Buffer> 
       ev.addRow({
         pn: r.part.partNumber,
         domain: e.domain,
+        tier: sourceTier(e.domain) === 'authorised' ? `Porsche dealer (${dealerName(e.domain)})` : sourceTier(e.domain),
         ok: e.partNumberConfirmed ? 'Yes' : 'No',
         origin: e.origin,
         title: e.title,

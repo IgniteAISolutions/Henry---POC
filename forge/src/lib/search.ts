@@ -11,41 +11,34 @@ export interface SearchHit {
   domain: string;
 }
 
-export type SearchProvider = 'google' | 'brave' | 'direct' | 'fixture';
+import { authorisedDealers, blockedBrands, isBlocked, sourceTier, TIER_RANK } from './sources';
 
-/** Sites that publish real Porsche part data and are worth reading.
- *  Ordered by how reliably they carry OE cross-references. */
-const TRUSTED_DOMAINS = [
-  'pelicanparts.com',
-  'suncoastparts.com',
-  'fcpeuro.com',
-  'europaparts.com',
-  'rennlist.com',
-  'porscheapart.com',
-  'autodoc.co.uk',
-  'ecstuning.com',
-  'partsouq.com',
-  'sachs.com',
-  'bosch-automotive.com',
-];
+export type SearchProvider = 'google' | 'brave' | 'direct' | 'fixture';
 
 function domainOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, '');
-  } catch {
+  } catch (err) {
     // A malformed URL from a search provider is not worth a crash.
+    if (!(err instanceof TypeError)) throw err;
     return '';
   }
 }
 
-/** Trusted domains float to the top; everything else keeps its order. */
-function rank(hits: SearchHit[]): SearchHit[] {
-  const score = (h: SearchHit) => {
-    const i = TRUSTED_DOMAINS.findIndex((d) => h.domain.endsWith(d));
-    return i === -1 ? TRUSTED_DOMAINS.length : i;
-  };
-  return [...hits].sort((a, b) => score(a) - score(b));
+/** Blocked sources removed; authorised dealers first, then specialists, then
+ *  everything else, each group keeping the provider's own order. */
+export function rank(hits: SearchHit[]): SearchHit[] {
+  return hits
+    .filter((h) => h.domain && !isBlocked(h.domain))
+    .map((h, i) => ({ h, i }))
+    .sort((a, b) => TIER_RANK[sourceTier(a.h.domain)] - TIER_RANK[sourceTier(b.h.domain)] || a.i - b.i)
+    .map(({ h }) => h);
 }
+
+/** Query operators shared by Google and Brave. */
+const EXCLUDE_BLOCKED = () =>
+  blockedBrands().flatMap((b) => [`-site:${b}.com`, `-site:${b}.co.uk`, `-site:${b}.de`]).join(' ');
+const DEALERS_ONLY = () => `(${authorisedDealers().map((d) => `site:${d.domain}`).join(' OR ')})`;
 
 async function googleSearch(query: string, limit: number): Promise<SearchHit[]> {
   const key = process.env.GOOGLE_API_KEY;
@@ -95,13 +88,21 @@ async function braveSearch(query: string, limit: number): Promise<SearchHit[]> {
   }));
 }
 
-/** No search key configured. Build candidate URLs straight from each
- *  retailer's own search endpoint and let the fetch stage sort out which
- *  ones actually mention the part number. Slower and noisier than a real
- *  search API, but it needs no credentials at all. */
+/** No search key configured. Build candidate URLs straight from each site's
+ *  own search, authorised dealers first, and let the fetch stage follow them
+ *  to product pages that carry the part number. Dealer search paths come from
+ *  data/source-policy.json; a wrong path just 404s and is skipped. */
 function directCandidates(partNumber: string): SearchHit[] {
   const pn = encodeURIComponent(partNumber);
-  const endpoints: Array<[string, string]> = [
+  const dealers: SearchHit[] = authorisedDealers()
+    .filter((d) => d.search)
+    .map((d) => ({
+      url: `https://www.${d.domain}${d.search!.replace('{pn}', pn)}`,
+      domain: d.domain,
+      title: `${d.name} search for ${partNumber}`,
+      snippet: '',
+    }));
+  const specialists: Array<[string, string]> = [
     ['pelicanparts.com', `https://www.pelicanparts.com/cgi-bin/search/pelican_search.cgi?search_string=${pn}`],
     ['suncoastparts.com', `https://www.suncoastparts.com/search?q=${pn}`],
     ['fcpeuro.com', `https://www.fcpeuro.com/products?keywords=${pn}`],
@@ -109,12 +110,10 @@ function directCandidates(partNumber: string): SearchHit[] {
     ['autodoc.co.uk', `https://www.autodoc.co.uk/search?keyword=${pn}`],
     ['partsouq.com', `https://partsouq.com/en/search/all?q=${pn}`],
   ];
-  return endpoints.map(([domain, url]) => ({
-    url,
-    domain,
-    title: `${domain} search for ${partNumber}`,
-    snippet: '',
-  }));
+  return [
+    ...dealers,
+    ...specialists.map(([domain, url]) => ({ url, domain, title: `${domain} search for ${partNumber}`, snippet: '' })),
+  ];
 }
 
 export interface SearchResult {
@@ -125,26 +124,31 @@ export interface SearchResult {
 export async function searchByPartNumber(
   partNumber: string,
   context: { manufacturer?: string; name?: string } = {},
-  limit = 8
+  limit = 10
 ): Promise<SearchResult> {
-  // The part number is the anchor. Manufacturer and name only disambiguate
-  // short or heavily reused numbers.
-  const query = [partNumber, context.manufacturer, 'porsche'].filter(Boolean).join(' ');
+  // The part number is the anchor. Two queries run side by side: one limited
+  // to authorised Porsche dealers, one open (minus blocked sources). Dealer
+  // results go first.
+  const base = [partNumber, context.manufacturer?.replace(/\(.*?\)/g, '').trim(), 'porsche'].filter(Boolean).join(' ');
+  const dealerQuery = `${partNumber} ${DEALERS_ONLY()}`;
+  const openQuery = `${base} ${EXCLUDE_BLOCKED()}`;
 
-  const providers: Array<[SearchProvider, () => Promise<SearchHit[]>]> = [
-    ['google', () => googleSearch(query, limit)],
-    ['brave', () => braveSearch(query, limit)],
+  const providers: Array<[SearchProvider, (q: string, n: number) => Promise<SearchHit[]>]> = [
+    ['google', googleSearch],
+    ['brave', braveSearch],
   ];
 
   for (const [provider, run] of providers) {
     try {
-      const hits = await run();
-      if (hits.length) return { hits: rank(hits).slice(0, limit), provider };
+      const [dealer, open] = await Promise.all([run(dealerQuery, 5).catch(() => []), run(openQuery, limit)]);
+      const seen = new Set<string>();
+      const merged = [...dealer, ...open].filter((h) => (seen.has(h.url) ? false : (seen.add(h.url), true)));
+      if (merged.length) return { hits: rank(merged).slice(0, limit), provider };
     } catch (err) {
       // A provider that errors or is unconfigured falls through to the next.
       console.warn(`[forge:search] ${provider} failed:`, (err as Error).message);
     }
   }
 
-  return { hits: directCandidates(partNumber).slice(0, limit), provider: 'direct' };
+  return { hits: rank(directCandidates(partNumber)).slice(0, 14), provider: 'direct' };
 }

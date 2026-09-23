@@ -133,6 +133,10 @@ Every fitment entry, OE reference and attribute carries its own confidence:
                   build the opening paragraph on it alone.
   catalogue     — from Design 911's own catalogue record, not cross-checked.
 
+"dealer": true marks a fact stated by an authorised Porsche dealer. Those are
+the most reliable facts you have: prefer them for the opening and fitment
+paragraphs.
+
 "leftOutBecauseSourcesDisagree" names facts that were removed because
 sources contradicted each other. Do not mention them, hint at them, or fill
 them in from general knowledge.
@@ -166,7 +170,7 @@ Worked example in the house pattern:\n\n${FALLBACK_EXAMPLE}`;
 export function buildUserMessage(part: Part, verification: Verification): string {
   const { accepted } = verification;
   const fitment = accepted.fitment.length
-    ? accepted.fitment.map(({ vehicle, confidence }) => ({ vehicle, confidence }))
+    ? accepted.fitment.map(({ vehicle, confidence, authorised }) => ({ vehicle, confidence, ...(authorised ? { dealer: true } : {}) }))
     : (part.fitment ?? []).map((f) => ({
         vehicle: [f.model, f.engine, f.years].filter(Boolean).join(' '),
         confidence: 'catalogue',
@@ -180,8 +184,10 @@ export function buildUserMessage(part: Part, verification: Verification): string
     qualityTier: part.qualityTier ?? 'Unknown',
     knownSummary: part.summary,
     fitment,
-    oeReferences: accepted.oeReferences.map(({ ref, confidence }) => ({ ref, confidence })),
-    attributes: accepted.attributes.map(({ label, value, confidence }) => ({ name: label, value, confidence })),
+    oeReferences: accepted.oeReferences.map(({ ref, confidence, authorised }) => ({ ref, confidence, ...(authorised ? { dealer: true } : {}) })),
+    attributes: accepted.attributes.map(({ label, value, confidence, authorised }) => ({
+      name: label, value, confidence, ...(authorised ? { dealer: true } : {}),
+    })),
     leftOutBecauseSourcesDisagree: verification.conflicts.map((c) => c.field),
     sourceCount: verification.sourcesConfirming,
   };

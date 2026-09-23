@@ -1,0 +1,23 @@
+{
+  "_readme": "Which sources Forge trusts. Edit, commit, redeploy. blockedBrands: never searched, read or counted (matched on the company name, so ebay.com, ebay.co.uk and ebay.de are all blocked). authorisedDealers: official Porsche Centre / dealership parts stores and Porsche itself. Searched first, ranked first, and when they agree with each other their value beats any other source. Only list a site if it names the Porsche dealership that runs it. specialists: established Porsche parts retailers, ranked after dealers.",
+  "blockedBrands": ["ebay"],
+  "authorisedDealers": [
+    { "domain": "porsche.com", "name": "Porsche" },
+    { "domain": "sunsetporscheparts.com", "name": "Sunset Porsche", "search": "/search?search_str={pn}" },
+    { "domain": "getporschesilverspringparts.com", "name": "Porsche Silver Spring", "search": "/search?search_str={pn}" },
+    { "domain": "porscheatlantaperimeterparts.com", "name": "Porsche Atlanta Perimeter" },
+    { "domain": "byersporsche.com", "name": "Byers Porsche" },
+    { "domain": "porschemarinparts.com", "name": "Porsche Marin", "search": "/search?search_str={pn}" },
+    { "domain": "porscheburlingameparts.com", "name": "Porsche Burlingame", "search": "/search?search_str={pn}" },
+    { "domain": "gaudinporscheparts.com", "name": "Gaudin Porsche", "search": "/search?search_str={pn}" },
+    { "domain": "harperautoparts.com", "name": "Harper Porsche", "search": "/search?search_str={pn}" },
+    { "domain": "delawareporscheparts.com", "name": "Porsche Delaware", "search": "/search?search_str={pn}" },
+    { "domain": "porschedelaware.com", "name": "Porsche Delaware" },
+    { "domain": "porschemobile.com", "name": "Porsche Mobile" }
+  ],
+  "specialists": [
+    "pelicanparts.com", "suncoastparts.com", "fcpeuro.com", "europaparts.com", "rosepassion.com",
+    "autohausaz.com", "rmeuropean.com", "ecstuning.com", "stoddard.com", "sierramadrecollection.com",
+    "autodoc.co.uk", "partsouq.com"
+  ]
+}
