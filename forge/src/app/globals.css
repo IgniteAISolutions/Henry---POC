@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: dark; }
+html, body { background: #08090B; color: #F7F8F9; }
+body { -webkit-font-smoothing: antialiased; }
+
+/* Faint engineering grid behind everything. */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.label { @apply text-[10.5px] font-semibold uppercase tracking-[0.14em] text-chalk-500; }
+
+/* Rendered product copy: styled like a listing page, not like the app. */
+.listing p { @apply mb-3 leading-relaxed text-chalk-200; }
+.listing p:first-child { @apply text-chalk-50; }
+.listing p:last-child { @apply mb-0; }
+
+@keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.sweep { position: relative; overflow: hidden; }
+.sweep::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(228,52,43,0.35), transparent);
+  animation: sweep 1.1s linear infinite;
+}
+
+::selection { background: rgba(228,52,43,0.4); }
