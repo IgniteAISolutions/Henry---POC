@@ -62,7 +62,7 @@ export default function Home() {
           incomplete: true,
           verification: {
             verdict: 'unconfirmed', confidence: 0, sourcesChecked: 0, sourcesConfirming: 0,
-            corroborated: [], singleSource: [], conflicts: [], notes: [],
+            corroborated: [], singleSource: [], conflicts: [], overrides: [], notes: [],
             accepted: { attributes: [], fitment: [], oeReferences: [] },
           },
         },

@@ -8,7 +8,7 @@ export default {
         ink: { 950: '#08090B', 900: '#0E1013', 850: '#141619', 800: '#1B1E23', 700: '#282C33', 600: '#3A3F48' },
         chalk: { 50: '#F7F8F9', 200: '#D6D9DE', 400: '#9AA1AC', 500: '#7A828E' },
         forge: { 500: '#E4342B', 600: '#C42920', 400: '#F2564D' },
-        signal: { ok: '#3FB950', warn: '#D8A114', bad: '#E4342B' },
+        signal: { ok: '#3FB950', warn: '#D8A114', bad: '#E4342B', info: '#58A6FF' },
       },
       fontFamily: {
         sans: ['ui-sans-serif', 'system-ui', '-apple-system', 'Segoe UI', 'Inter', 'Helvetica Neue', 'Arial', 'sans-serif'],

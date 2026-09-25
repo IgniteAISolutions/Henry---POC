@@ -11,6 +11,7 @@ import type { EnrichedPart, Evidence, Part, Stage, StageName } from './types';
 import { searchByPartNumber } from './search';
 import { harvestEvidence } from './scrape';
 import { verify } from './verify';
+import { isBlocked } from './sources';
 import { writeDescription, writerConfigured } from './writer';
 import { loadCorpus, loadFixtures } from './data';
 
@@ -64,7 +65,7 @@ export async function runPipeline(part: Part, opts: RunOptions = {}): Promise<En
 
     const pages = await timed('fetch', async () => {
       const settled = await Promise.allSettled(found.hits.map((h) => harvestEvidence(h, part.partNumber)));
-      return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+      return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : [])).filter((e) => !isBlocked(e.domain));
     });
     evidence = pages;
     const confirmed = pages.filter((e) => e.partNumberConfirmed).length;
@@ -106,7 +107,7 @@ export async function runPipeline(part: Part, opts: RunOptions = {}): Promise<En
   }
   if (!writerConfigured()) {
     emit('write', { status: 'skipped', detail: 'OPENAI_API_KEY not set' });
-    result.error = 'Set OPENAI_API_KEY in .env.local to generate descriptions.';
+    result.error = 'OPENAI_API_KEY is not set for this environment. Add it to .env.local, or to the Vercel project (Production and Preview) and redeploy.';
     return result;
   }
 

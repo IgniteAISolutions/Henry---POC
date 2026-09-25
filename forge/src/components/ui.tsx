@@ -37,12 +37,13 @@ export function StageIcon({ status }: { status: StageStatus }) {
   }
 }
 
-export function Chip({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'ok' | 'warn' | 'bad' | 'neutral' }) {
+export function Chip({ children, tone = 'neutral' }: { children: React.ReactNode; tone?: 'ok' | 'warn' | 'bad' | 'neutral' | 'dealer' }) {
   const cls = {
     ok: 'border-signal-ok/30 bg-signal-ok/10 text-signal-ok',
     warn: 'border-signal-warn/30 bg-signal-warn/10 text-signal-warn',
     bad: 'border-forge-500/40 bg-forge-500/10 text-forge-400',
     neutral: 'border-ink-600 bg-ink-800 text-chalk-200',
+    dealer: 'border-signal-info/40 bg-signal-info/10 text-signal-info',
   }[tone];
   return <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs ${cls}`}>{children}</span>;
 }

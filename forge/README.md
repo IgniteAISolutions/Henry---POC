@@ -43,13 +43,21 @@ npm run dev                  # http://localhost:3000
 
 | Part | What happens | Why it matters |
 |---|---|---|
-| **94411021401** Idle control valve hose | 6 independent sites carry the part number. Rear position and fitment are corroborated. Verified. | The happy path, with receipts. |
-| **99750396302GRV** Door sill panel | rosepassion says *rear left*, two Porsche dealers say *front*. Position is **left out of the copy**. | Forge doesn't pick a side or average. It drops the disputed fact. |
+| **94411021401** Idle control valve hose | 5 independent specialist retailers carry the part number. Rear position and fitment are corroborated. Verified. | The happy path, with receipts. |
+| **99750396302GRV** Door sill panel | Two authorised Porsche dealers (Porsche Atlanta Perimeter, Byers Porsche) say *front*, and rosepassion says *rear left*. **The dealers win.** The overruled value is shown on screen and in the export. | Porsche's own dealer network outranks everyone else, and Forge shows its working. |
 | **V04015005BT** Bracket | No page found carries this part number. **Forge refuses to write it.** | A guessed parts listing is how the wrong part gets ordered. |
+
+Look for the blue **Porsche dealer** chips too. Where a dealer only lists a *neighbouring* number (a supersession or colour variant), Forge shows that page but doesn't count it as confirmation.
 
 Also worth telling: while this was being built, a search engine summary described **96410601401** as an *"alternator fan belt sensor"*. The only catalogue page carrying that number says **rear engine cover, 964**. Forge counts pages that carry the number, never summaries.
 
 ## How verification works
+
+**Who counts** (edit `data/source-policy.json`, commit, redeploy):
+- **eBay never counts.** It's blocked on every country domain: not searched, not read, not scored.
+- **Authorised Porsche dealers come first.** These are official Porsche Centre / dealership parts stores and porsche.com. Search runs a dealer-only query alongside the open one, and dealer results rank first. A confirming dealer page lifts confidence.
+- **When dealers agree, they win a disagreement** with any other source. The overruled value is kept on record ("Dealer overruled" column). When dealers disagree with *each other*, nothing is settled and the fact is left out.
+- Only list a dealer if the site names the Porsche dealership that runs it. Aggregators that merely resell dealer stock don't qualify.
 
 - A page contributes facts **only if the part number physically appears in it**. A search engine thinking a page is relevant isn't enough.
 - Sources count as independent only if they're on **different domains**.
@@ -93,9 +101,11 @@ npm run test:harvest     # harvester parsing against synthetic Design 911-shaped
 data/products.json            the 10 parts (the "before")
 data/evidence-fixtures.json   recorded evidence for Recorded / Auto modes, one real URL per record
 data/voice-corpus.json        real Design 911 listings (empty until you harvest)
+data/source-policy.json       blocked sources, authorised Porsche dealers, specialists
 src/lib/search.ts             part-number search, pluggable providers
 src/lib/scrape.ts             page reading, part-number confirmation, fact extraction
-src/lib/verify.ts             corroboration, conflicts, confidence, verdict
+src/lib/sources.ts            source tiers from data/source-policy.json
+src/lib/verify.ts             corroboration, conflicts, dealer overrules, confidence, verdict
 src/lib/voice.ts              the Design 911 house style and prompt
 src/lib/writer.ts             OpenAI call and sanitiser
 src/lib/pipeline.ts           the four stages
@@ -108,6 +118,7 @@ deliverables/                 the catalogue spreadsheet (npm run spreadsheet)
 - The 10 parts' "no description" status is **inferred** from bare Design 911 page titles ("Original Porsche Part - 99761209005"). `npm run harvest -- --find-missing` confirms it against the page body.
 - Recorded evidence was captured from search-index **titles and URLs**. Page bodies weren't fetched. Live mode reads the full pages.
 - The harvester's selectors have **never been run against the real site**. They were built against synthetic pages because the build machine couldn't reach design911.co.uk. It tries JSON-LD first, then microdata, then common description containers. If the first real run finds nothing, capture one real page as a fixture in `scripts/harvest-lib.test.ts` and adjust `scripts/harvest-lib.ts`.
+- The authorised dealer list is mostly US Porsche dealership parts stores, because those are what search engines index. Their site-search paths (used when there's no Google or Brave key) follow the common `/search?search_str=` pattern and haven't been checked against each site. A wrong path is skipped, not fatal.
 - Live OpenAI generation hasn't been run yet, for the same reason. The first Vercel deployment is its first real test.
 - The app has no login. Anyone with the URL can press *Run all 10*, which spends a little OpenAI credit (roughly one US cent per part on `gpt-4o`). Keep Vercel Authentication on until the demo if that matters.
 

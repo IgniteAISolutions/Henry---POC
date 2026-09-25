@@ -2,6 +2,7 @@
 
 import type { EnrichedPart, Part, Stage } from '@/lib/types';
 import { Chip, Panel, StageIcon, VerdictBadge } from './ui';
+import { dealerName, sourceTier, TIER_RANK } from '@/lib/sources';
 
 const STAGE_LABEL: Record<Stage['name'], string> = {
   search: 'Search by part number',
@@ -31,7 +32,11 @@ function StageTrack({ stages }: { stages: Stage[] }) {
 }
 
 function Evidence({ r }: { r: EnrichedPart }) {
-  const sorted = [...r.evidence].sort((a, b) => Number(b.partNumberConfirmed) - Number(a.partNumberConfirmed));
+  const sorted = [...r.evidence].sort(
+    (a, b) =>
+      Number(b.partNumberConfirmed) - Number(a.partNumberConfirmed) ||
+      TIER_RANK[sourceTier(a.domain)] - TIER_RANK[sourceTier(b.domain)]
+  );
   const hasLive = r.evidence.some((e) => e.origin === 'live');
   const hasRecorded = r.evidence.some((e) => e.origin === 'recorded');
   const originChip = hasLive && hasRecorded
@@ -56,6 +61,7 @@ function Evidence({ r }: { r: EnrichedPart }) {
           >
             <div className="flex flex-wrap items-center gap-2">
               <span className="font-mono text-xs text-chalk-50">{e.domain}</span>
+              {sourceTier(e.domain) === 'authorised' && <Chip tone="dealer">Porsche dealer · {dealerName(e.domain)}</Chip>}
               <span className={`text-[10px] font-semibold uppercase tracking-wider ${e.origin === 'live' ? 'text-signal-ok' : 'text-signal-warn'}`}>
                 {e.origin === 'live' ? 'live' : 'recorded'}
               </span>
@@ -122,6 +128,20 @@ function Facts({ r }: { r: EnrichedPart }) {
             <dd className="flex flex-wrap gap-1.5">{v.singleSource.map((f) => <Chip key={f} tone="warn">{pretty(f)}</Chip>)}</dd>
           </div>
         )}
+        {v.overrides.length > 0 && (
+          <div>
+            <dt className="label mb-1.5 !text-signal-info">Authorised dealer overruled another source</dt>
+            <dd className="space-y-1.5">
+              {v.overrides.map((o) => (
+                <div key={o.field} className="rounded-md border border-signal-info/30 bg-signal-info/5 px-3 py-2 text-chalk-200">
+                  <span className="font-semibold text-signal-info">{o.kind === 'fitment-detail' ? `Fitment detail, ${o.field}` : o.field}: </span>
+                  kept &quot;{o.kept.value}&quot; ({o.kept.domains.map((d) => dealerName(d) ?? d).join(', ')}) over{' '}
+                  {o.overruled.map((x) => `"${x.value}" (${x.domain})`).join(', ')}
+                </div>
+              ))}
+            </dd>
+          </div>
+        )}
         {v.conflicts.length > 0 && (
           <div>
             <dt className="label mb-1.5 !text-forge-400">Sources disagree, left out of the copy</dt>
@@ -135,7 +155,7 @@ function Facts({ r }: { r: EnrichedPart }) {
             </dd>
           </div>
         )}
-        {v.notes.filter((n) => !n.includes('disagree')).map((n) => (
+        {v.notes.filter((n) => !n.includes('disagree') && !n.includes('kept over')).map((n) => (
           <p key={n} className="text-xs text-chalk-500">{n}</p>
         ))}
       </dl>
